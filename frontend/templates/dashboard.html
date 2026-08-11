@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block title %}Executive Dashboard{% endblock %}
+{% block header_title %}Executive Dashboard{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+  <!-- Key Metrics 4-Grid Cards -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+    <!-- Card 1: Total Users -->
+    <div class="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm hover-card">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Users</span>
+        <div class="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+          </svg>
+        </div>
+      </div>
+      <div class="mt-4 flex items-baseline justify-between">
+        <span class="text-2xl font-black text-slate-900 tracking-tight">{{ "{:,}".format(metrics.total_users) }}</span>
+        <span class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center">
+          <svg class="w-3 h-3 mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg>
+          +12.4%
+        </span>
+      </div>
+      <p class="text-[11px] text-slate-400 mt-1">vs last month (11,430)</p>
+    </div>
+
+    <!-- Card 2: Daily Active Users -->
+    <div class="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm hover-card">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Daily Active Users</span>
+        <div class="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+          </svg>
+        </div>
+      </div>
+      <div class="mt-4 flex items-baseline justify-between">
+        <span class="text-2xl font-black text-slate-900 tracking-tight">{{ "{:,}".format(metrics.daily_active) }}</span>
+        <span class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center">
+          <svg class="w-3 h-3 mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg>
+          +8.2%
+        </span>
+      </div>
+      <p class="text-[11px] text-slate-400 mt-1">Peak peak concurrent queue: 812</p>
+    </div>
+
+    <!-- Card 3: Active Bookings -->
+    <div class="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm hover-card">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Active Bookings</span>
+        <div class="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+          </svg>
+        </div>
+      </div>
+      <div class="mt-4 flex items-baseline justify-between">
+        <span class="text-2xl font-black text-slate-900 tracking-tight">{{ metrics.active_bookings }}</span>
+        <span class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center">
+          <svg class="w-3 h-3 mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg>
+          +15.3%
+        </span>
+      </div>
+      <p class="text-[11px] text-slate-400 mt-1">Courts utilization at 92%</p>
+    </div>
+
+    <!-- Card 4: Total Revenue -->
+    <div class="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm hover-card">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Revenue</span>
+        <div class="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+        </div>
+      </div>
+      <div class="mt-4 flex items-baseline justify-between">
+        <span class="text-2xl font-black text-slate-900 tracking-tight">{{ metrics.total_revenue }}</span>
+        <span class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center">
+          <svg class="w-3 h-3 mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg>
+          +18.9%
+        </span>
+      </div>
+      <p class="text-[11px] text-slate-400 mt-1">Points & court reservations</p>
+    </div>
+  </div>
+
+  <!-- Chart & Quick Admin Actions Section -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <!-- Matchmaking Health & Queue Latency Chart -->
+    <div class="lg:col-span-2 bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h3 class="text-base font-bold text-slate-900">Matchmaking Health & Queue Latency</h3>
+          <p class="text-xs text-slate-500">7-day server execution latency & dynamic match speed</p>
+        </div>
+        <div class="flex items-center space-x-2 text-xs font-semibold">
+          <span class="inline-block w-2.5 h-2.5 rounded-full bg-indigo-600"></span>
+          <span class="text-slate-600">Today (22ms avg)</span>
+        </div>
+      </div>
+      <div class="h-64">
+        <canvas id="matchmakingHealthChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Quick Admin Actions Panel -->
+    <div class="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
+      <div>
+        <h3 class="text-base font-bold text-slate-900 mb-1">Quick Admin Actions</h3>
+        <p class="text-xs text-slate-500 mb-6">Immediate system operations & court overrides</p>
+
+        <div class="space-y-3">
+          <button onclick="triggerQuickAction('manual_match')" 
+                  class="w-full flex items-center justify-between p-3.5 rounded-2xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/50 text-left transition-all group">
+            <div class="flex items-center space-x-3">
+              <div class="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white flex items-center justify-center transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                </svg>
+              </div>
+              <div>
+                <p class="text-xs font-bold text-slate-900">Manual Matchmaking</p>
+                <p class="text-[11px] text-slate-500">Force immediate pairing sweep</p>
+              </div>
+            </div>
+            <svg class="w-4 h-4 text-slate-400 group-hover:text-indigo-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+            </svg>
+          </button>
+
+          <button onclick="triggerQuickAction('block_slot')" 
+                  class="w-full flex items-center justify-between p-3.5 rounded-2xl border border-slate-200 hover:border-amber-500 hover:bg-amber-50/50 text-left transition-all group">
+            <div class="flex items-center space-x-3">
+              <div class="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 group-hover:bg-amber-600 group-hover:text-white flex items-center justify-center transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                </svg>
+              </div>
+              <div>
+                <p class="text-xs font-bold text-slate-900">Block Court Slot</p>
+                <p class="text-[11px] text-slate-500">Flag slot for emergency maintenance</p>
+              </div>
+            </div>
+            <svg class="w-4 h-4 text-slate-400 group-hover:text-amber-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+            </svg>
+          </button>
+
+          <button onclick="const reason = prompt('Enter alert message to broadcast:'); if(reason) triggerQuickAction('issue_warning', {reason});" 
+                  class="w-full flex items-center justify-between p-3.5 rounded-2xl border border-slate-200 hover:border-rose-500 hover:bg-rose-50/50 text-left transition-all group">
+            <div class="flex items-center space-x-3">
+              <div class="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 group-hover:bg-rose-600 group-hover:text-white flex items-center justify-center transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 01-6 0v-1m6 0H9"></path>
+                </svg>
+              </div>
+              <div>
+                <p class="text-xs font-bold text-slate-900">Issue Alert / Warning</p>
+                <p class="text-[11px] text-slate-500">Broadcast global system notification</p>
+              </div>
+            </div>
+            <svg class="w-4 h-4 text-slate-400 group-hover:text-rose-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
+        <span>Admin session active</span>
+        <span class="font-bold text-slate-700">Karl Alegrado</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent System Logs & Audit Trail Table -->
+  <div class="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm">
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h3 class="text-base font-bold text-slate-900">Recent System Logs & Audit Trail</h3>
+        <p class="text-xs text-slate-500">Live feed of administrative actions and platform automated tasks</p>
+      </div>
+      <span class="text-xs font-semibold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100">
+        System Health: High
+      </span>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-left border-collapse text-xs">
+        <thead>
+          <tr class="border-b border-slate-200 text-slate-400 font-bold uppercase tracking-wider">
+            <th class="py-3 px-4">Log ID</th>
+            <th class="py-3 px-4">Timestamp</th>
+            <th class="py-3 px-4">Activity Description</th>
+            <th class="py-3 px-4">Administrator</th>
+            <th class="py-3 px-4 text-right">Execution Status</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100 font-medium text-slate-700">
+          {% for log in logs %}
+          <tr class="hover:bg-slate-50/70 transition-colors">
+            <td class="py-3.5 px-4 font-mono font-bold text-slate-900">{{ log.id }}</td>
+            <td class="py-3.5 px-4 text-slate-500">{{ log.timestamp }}</td>
+            <td class="py-3.5 px-4 text-slate-900 font-semibold">{{ log.action }}</td>
+            <td class="py-3.5 px-4 text-slate-600">{{ log.admin }}</td>
+            <td class="py-3.5 px-4 text-right">
+              <span class="px-2.5 py-1 rounded-full text-[11px] font-bold 
+                {% if log.status == 'Completed' %} bg-emerald-100 text-emerald-800 
+                {% elif log.status == 'Active' %} bg-indigo-100 text-indigo-800 
+                {% else %} bg-blue-100 text-blue-800 {% endif %}">
+                {{ log.status }}
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

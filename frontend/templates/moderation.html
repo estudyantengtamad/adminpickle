@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+
+{% block title %}Moderation Hub{% endblock %}
+{% block header_title %}Moderation Hub{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+  <!-- Top Grid: Reported Queue & Log Inspector -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <!-- Left 2-Columns: Reported Players Queue Table -->
+    <div class="lg:col-span-2 bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h3 class="text-base font-bold text-slate-900">Reported Players Queue</h3>
+          <p class="text-xs text-slate-500">Player misconduct reports requiring administrator review</p>
+        </div>
+        <span class="text-xs font-bold text-rose-600 bg-rose-50 px-3 py-1 rounded-full border border-rose-200">
+          3 Reports Pending
+        </span>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="border-b border-slate-200 text-slate-400 font-bold uppercase tracking-wider">
+              <th class="py-3 px-3">Report ID</th>
+              <th class="py-3 px-3">Reported Player</th>
+              <th class="py-3 px-3">Reason</th>
+              <th class="py-3 px-3">Severity</th>
+              <th class="py-3 px-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100 font-medium text-slate-700">
+            {% for r in reports %}
+            <tr class="hover:bg-slate-50/70 transition-colors">
+              <td class="py-3.5 px-3 font-mono font-bold text-slate-900">{{ r.id }}</td>
+              <td class="py-3.5 px-3">
+                <p class="font-bold text-indigo-600">{{ r.player_name }}</p>
+                <p class="text-[10px] text-slate-400 font-mono">{{ r.player_id }}</p>
+              </td>
+              <td class="py-3.5 px-3 text-slate-600 max-w-xs">{{ r.reason }}</td>
+              <td class="py-3.5 px-3">
+                <span class="px-2 py-0.5 rounded text-[11px] font-bold 
+                  {% if r.severity == 'High' %} bg-rose-100 text-rose-800 
+                  {% elif r.severity == 'Medium' %} bg-amber-100 text-amber-800 
+                  {% else %} bg-slate-100 text-slate-700 {% endif %}">
+                  {{ r.severity }}
+                </span>
+              </td>
+              <td class="py-3.5 px-3 text-right whitespace-nowrap">
+                <div class="inline-flex items-center justify-end space-x-1.5">
+                  <button onclick="handleReportAction('{{ r.id }}', 'warning')" 
+                          title="Issue Warning" 
+                          class="px-2.5 py-1 bg-amber-50 text-amber-800 hover:bg-amber-100 rounded-lg border border-amber-200 text-[11px] font-bold transition-colors">
+                    Warn
+                  </button>
+                  <button onclick="handleReportAction('{{ r.id }}', 'mute')" 
+                          title="Mute Chat" 
+                          class="px-2.5 py-1 bg-indigo-50 text-indigo-800 hover:bg-indigo-100 rounded-lg border border-indigo-200 text-[11px] font-bold transition-colors">
+                    Mute
+                  </button>
+                  <button onclick="handleReportAction('{{ r.id }}', 'ban')" 
+                          title="Ban Account" 
+                          class="px-2.5 py-1 bg-rose-600 text-white hover:bg-rose-700 rounded-lg text-[11px] font-bold transition-colors">
+                    Ban
+                  </button>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Right Column: Player Log Inspector Chat Box -->
+    <div class="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
+      <div>
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+          <h3 class="text-base font-bold text-slate-900">Log Inspector</h3>
+          <span class="text-xs font-mono font-bold text-slate-500">Mabelle Kimball</span>
+        </div>
+
+        <!-- Simulated Chat Stream -->
+        <div class="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 space-y-3 h-56 overflow-y-auto font-sans text-xs">
+          {% if chat_logs['USR-9311'] %}
+            {% for line in chat_logs['USR-9311'] %}
+              <div class="p-2.5 rounded-xl border {% if line.toxic %} bg-rose-50 border-rose-200 text-rose-900 {% else %} bg-white border-slate-200 text-slate-800 {% endif %}">
+                <div class="flex items-center justify-between mb-1 text-[10px]">
+                  <span class="font-bold {% if line.toxic %} text-rose-700 {% else %} text-slate-600 {% endif %}">{{ line.sender }}</span>
+                  <span class="text-slate-400">{{ line.time }}</span>
+                </div>
+                <p>{{ line.text }}</p>
+              </div>
+            {% endfor %}
+          {% else %}
+            <p class="text-slate-400 italic text-center py-6">No chat logs recorded for selected player.</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="mt-4 pt-4 border-t border-slate-100 grid grid-cols-2 gap-2">
+        <button onclick="handleReportAction('REP-801', 'warning')" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-2.5 px-3 rounded-xl text-xs border border-slate-300">
+          Issue Warning
+        </button>
+        <button onclick="handleReportAction('REP-801', 'mute')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-3 rounded-xl text-xs shadow-md shadow-indigo-200">
+          Mute Chat (48h)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Section: Tournament & Club Postings Manager -->
+  <div class="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm space-y-6">
+    <div>
+      <h3 class="text-base font-bold text-slate-900">Tournament & Club Postings Manager</h3>
+      <p class="text-xs text-slate-500">Publish promotional events, local tournaments, and app announcements</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <!-- Create Event Form -->
+      <form onsubmit="submitNewEvent(event)" class="bg-slate-50 border border-slate-200/70 p-5 rounded-2xl space-y-4 text-xs">
+        <h4 class="font-bold text-slate-800 uppercase tracking-wider text-[11px]">Create Event Posting</h4>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Event Title</label>
+          <input type="text" id="evtTitle" required placeholder="e.g. Autumn Open 2026" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500/20">
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Host Venue</label>
+          <select id="evtVenue" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500/20">
+            <option>Current Paddle Club</option>
+            <option>Quantum Courts</option>
+            <option>Riverside Arena</option>
+            <option>Harbor Sports Center</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Event Date</label>
+            <input type="text" id="evtDate" required placeholder="Nov 15, 2026" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Category Tag</label>
+            <input type="text" id="evtTag" required placeholder="TOURNAMENT" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs">
+          </div>
+        </div>
+
+        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-4 rounded-xl shadow-md shadow-indigo-200 transition-all">
+          Publish Posting
+        </button>
+      </form>
+
+      <!-- Active Postings List Grid -->
+      <div class="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {% for t in tournaments %}
+        <div class="border border-slate-200 rounded-2xl p-4 bg-white flex flex-col justify-between hover-card">
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                {{ t.tag }}
+              </span>
+              <span class="text-xs font-semibold {% if t.status == 'Published' %} text-emerald-600 {% else %} text-slate-400 {% endif %}">
+                ● {{ t.status }}
+              </span>
+            </div>
+            <h5 class="font-bold text-slate-900 text-sm">{{ t.title }}</h5>
+            <p class="text-xs text-slate-500 mt-1">{{ t.venue }}</p>
+          </div>
+          <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
+            <span>Date: {{ t.date }}</span>
+            <span class="font-bold text-indigo-600 hover:underline cursor-pointer">Edit</span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

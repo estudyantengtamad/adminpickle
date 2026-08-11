@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block title %}User & Player Management{% endblock %}
+{% block header_title %}User & Player Management{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+  <!-- Left 2-Columns: Player Table & Filters -->
+  <div class="lg:col-span-2 space-y-6">
+    <!-- Controls Header Card -->
+    <div class="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-sm space-y-4">
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+        <!-- Search input -->
+        <div class="relative flex-1">
+          <input type="text" 
+                 id="userSearchInput" 
+                 onkeyup="filterPlayers()"
+                 placeholder="Search by player name or ID (e.g. Sarah, USR-9982)..." 
+                 class="w-full bg-slate-50 border border-slate-200 text-xs text-slate-800 placeholder-slate-400 rounded-xl py-2.5 pl-9 pr-4 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all">
+          <svg class="w-4 h-4 text-slate-400 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+          </svg>
+        </div>
+
+        <!-- Filter Selects -->
+        <div class="flex items-center space-x-3">
+          <select id="tierFilterSelect" onchange="filterPlayers()" class="bg-slate-50 border border-slate-200 text-xs text-slate-700 font-semibold rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
+            <option value="ALL">Rank Tier: All</option>
+            <option value="Diamond">Diamond</option>
+            <option value="Platinum">Platinum</option>
+            <option value="Gold">Gold</option>
+            <option value="Silver">Silver</option>
+            <option value="Bronze">Bronze</option>
+          </select>
+
+          <select id="statusFilterSelect" onchange="filterPlayers()" class="bg-slate-50 border border-slate-200 text-xs text-slate-700 font-semibold rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
+            <option value="ALL">Status: All</option>
+            <option value="Active">Active</option>
+            <option value="Frozen">Frozen</option>
+            <option value="Banned">Banned</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Player Table Card -->
+    <div class="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm">
+      <h3 class="text-base font-bold text-slate-900 mb-4">Player Directory</h3>
+      
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="border-b border-slate-200 text-slate-400 font-bold uppercase tracking-wider">
+              <th class="py-3 px-3">User ID</th>
+              <th class="py-3 px-3">Player Name</th>
+              <th class="py-3 px-3">Elo Rating</th>
+              <th class="py-3 px-3">Rank Tier</th>
+              <th class="py-3 px-3">Match Rate</th>
+              <th class="py-3 px-3 text-right">Status</th>
+            </tr>
+          </thead>
+          <tbody id="playerTableBody" class="divide-y divide-slate-100 font-medium">
+            {% for player in players %}
+            <tr id="row-{{ player.id }}" 
+                onclick='selectPlayer({{ player | tojson }})'
+                data-name="{{ player.name }}"
+                data-id="{{ player.id }}"
+                data-tier="{{ player.tier }}"
+                data-status="{{ player.status }}"
+                class="player-row cursor-pointer hover:bg-slate-50 transition-colors">
+              <td class="py-3.5 px-3 font-mono font-bold text-slate-900">{{ player.id }}</td>
+              <td class="py-3.5 px-3 font-bold text-indigo-600 hover:underline">{{ player.name }}</td>
+              <td id="elo-{{ player.id }}" class="py-3.5 px-3 text-slate-800 font-semibold">{{ player.elo }}</td>
+              <td class="py-3.5 px-3">
+                <span class="px-2 py-0.5 rounded text-[11px] font-bold 
+                  {% if player.tier == 'Diamond' %} bg-cyan-100 text-cyan-800 
+                  {% elif player.tier == 'Platinum' %} bg-purple-100 text-purple-800 
+                  {% elif player.tier == 'Gold' %} bg-amber-100 text-amber-800 
+                  {% elif player.tier == 'Silver' %} bg-slate-200 text-slate-800 
+                  {% else %} bg-orange-100 text-orange-800 {% endif %}">
+                  ★ {{ player.tier }}
+                </span>
+              </td>
+              <td class="py-3.5 px-3 text-slate-600">{{ player.win_rate }}</td>
+              <td class="py-3.5 px-3 text-right">
+                <span id="status-{{ player.id }}" class="px-2.5 py-1 rounded-full text-xs font-semibold 
+                  {% if player.status == 'Active' %} bg-emerald-100 text-emerald-800 
+                  {% elif player.status == 'Frozen' %} bg-amber-100 text-amber-800 
+                  {% else %} bg-rose-100 text-rose-800 {% endif %}">
+                  {{ player.status }}
+                </span>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Column: Interactive Profile Inspector Drawer -->
+  <div id="profileInspector" class="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm flex flex-col justify-between h-fit sticky top-6 space-y-6">
+    <div>
+      <div class="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
+        <h3 class="text-base font-bold text-slate-900">Profile Inspector</h3>
+        <span class="text-[10px] uppercase font-bold tracking-widest text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">Player Detail</span>
+      </div>
+
+      <!-- Player Avatar & Main Summary -->
+      <div class="text-center my-6">
+        <div class="w-20 h-20 rounded-3xl bg-indigo-600 text-white font-black text-2xl flex items-center justify-center mx-auto shadow-xl shadow-indigo-100 border-2 border-white mb-3">
+          <span id="inspAvatarLetter">P</span>
+        </div>
+        <h4 id="inspPlayerName" class="text-lg font-black text-slate-900">Sarah Jenkins</h4>
+        <p id="inspPlayerId" class="text-xs font-mono font-bold text-slate-400">USR-9982</p>
+        <div class="mt-2">
+          <span id="inspStatus" class="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
+            Active
+          </span>
+        </div>
+      </div>
+
+      <!-- Details List Grid -->
+      <div class="bg-slate-50 border border-slate-200/70 rounded-2xl p-4 space-y-3 text-xs mb-6">
+        <div class="flex items-center justify-between">
+          <span class="text-slate-500 font-medium">Elo Competitive Rating</span>
+          <span id="inspElo" class="font-bold text-slate-900 text-sm">1942</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-slate-500 font-medium">Rank Tier</span>
+          <span id="inspTier" class="font-bold text-indigo-600">Diamond</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-slate-500 font-medium">Win / Match Rate</span>
+          <span id="inspWinRate" class="font-bold text-slate-800">74.2%</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-slate-500 font-medium">Total Matches Played</span>
+          <span id="inspMatches" class="font-bold text-slate-800">312</span>
+        </div>
+      </div>
+
+      <!-- Admin Notes -->
+      <div class="space-y-1">
+        <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Admin Operational Notes</label>
+        <p id="inspNotes" class="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-200/50 italic">
+          Top tier competitive player. Consistent league attendee.
+        </p>
+      </div>
+    </div>
+
+    <!-- Administrative Action Buttons -->
+    <div class="space-y-2.5 pt-4 border-t border-slate-100">
+      <div class="grid grid-cols-2 gap-2">
+        <button onclick="performPlayerAction('freeze')" 
+                class="w-full bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold py-2.5 px-3 rounded-xl text-xs border border-amber-200 transition-colors">
+          Freeze Account
+        </button>
+        <button onclick="performPlayerAction('reset_rating')" 
+                class="w-full bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-2.5 px-3 rounded-xl text-xs border border-slate-300 transition-colors">
+          Reset Rating
+        </button>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2">
+        <button onclick="performPlayerAction('ban')" 
+                class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-2.5 px-3 rounded-xl text-xs shadow-md shadow-rose-200 transition-colors">
+          Ban Account
+        </button>
+        <button onclick="performPlayerAction('unban')" 
+                class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-3 rounded-xl text-xs shadow-md shadow-emerald-200 transition-colors">
+          Activate / Unban
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Select first player on initial load
+  document.addEventListener('DOMContentLoaded', () => {
+    {% if players and players|length > 0 %}
+      selectPlayer({{ players[0] | tojson }});
+    {% endif %}
+  });
+</script>
+{% endblock %}
