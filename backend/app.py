@@ -5,7 +5,10 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from flask import Flask, render_template
-from flask_login import LoginManager
+try:
+    from flask_login import LoginManager
+except ImportError:
+    LoginManager = None
 from backend.config import Config
 from backend.models.mock_db import db
 
@@ -33,7 +36,7 @@ def create_app():
     from backend.routes.auth import auth_bp
     from backend.routes.dashboard import dashboard_bp
     from backend.routes.users import users_bp
-    from backend.routes.matchmaking import matchmaking_bp
+    from backend.routes.open_play import open_play_bp
     from backend.routes.venues import venues_bp
     from backend.routes.moderation import moderation_bp
     from backend.routes.settings import settings_bp
@@ -41,7 +44,7 @@ def create_app():
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(users_bp)
-    app.register_blueprint(matchmaking_bp)
+    app.register_blueprint(open_play_bp)
     app.register_blueprint(venues_bp)
     app.register_blueprint(moderation_bp)
     app.register_blueprint(settings_bp)

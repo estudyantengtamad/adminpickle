@@ -1,8 +1,26 @@
-from datetime import datetime
-from flask_login import UserMixin
+"""
+PickleLegends Admin Platform - In-Memory Mock Database
+Contains mock data stores and business logic for User Management, Venues, Moderation,
+and the Admin-Side "Open Play" Session Hosting & Fair Rotation Engine.
+"""
+
+from datetime import datetime, timedelta
+try:
+    from flask_login import UserMixin
+except ImportError:
+    class UserMixin:
+        pass
 from werkzeug.security import generate_password_hash, check_password_hash
 
+# ==============================================================================
+# 1. ADMIN USER & AUTHENTICATION MODEL
+# ==============================================================================
+
 class AdminUser(UserMixin):
+    """
+    Represents an authenticated Administrative User on the PickleLegends platform.
+    Job: Wraps user credentials and role details for Flask-Login integration.
+    """
     def __init__(self, id, username, name, role, avatar_url, password_hash):
         self.id = id
         self.username = username
@@ -12,11 +30,170 @@ class AdminUser(UserMixin):
         self.password_hash = password_hash
 
     def check_password(self, password):
+        """Verifies clear-text password against stored bcrypt/werkzeug hash."""
         return check_password_hash(self.password_hash, password)
 
+
+# ==============================================================================
+# 2. OPEN PLAY DATA MODELS (LOGICAL ENTITIES)
+# ==============================================================================
+
+class OpenPlaySession:
+    """
+    OpenPlaySession Entity
+    Job: Stores host information for an Admin Open Play session.
+    Fields:
+      - id: Unique session string ID (e.g., 'SESS-101')
+      - title: Event name (e.g., 'Downtown Morning DUPR Open Play')
+      - date: YYYY-MM-DD formatted date string
+      - start_time: Formatted start time (e.g., '08:00 AM')
+      - end_time: Formatted end time (e.g., '11:00 AM')
+      - court_count: Total available court count for this session (e.g., 3)
+      - max_players: Total capacity / player limit (e.g., 16)
+      - status: Current state ('upcoming', 'active', 'completed')
+      - created_at: Datetime when session was created by admin
+    """
+    def __init__(self, id, title, date, start_time, end_time, court_count, max_players, status="upcoming"):
+        self.id = id
+        self.title = title
+        self.date = date
+        self.start_time = start_time
+        self.end_time = end_time
+        self.court_count = int(court_count)
+        self.max_players = int(max_players)
+        self.status = status  # 'upcoming', 'active', or 'completed'
+        self.created_at = datetime.now()
+
+    def to_dict(self):
+        """Serializes session object into standard dictionary for API responses."""
+        return {
+            "id": self.id,
+            "title": self.title,
+            "date": self.date,
+            "start_time": self.start_time,
+            "end_time": self.end_time,
+            "court_count": self.court_count,
+            "max_players": self.max_players,
+            "status": self.status,
+            "created_at": self.created_at.strftime("%Y-%m-%d %H:%M:%S")
+        }
+
+
+class SessionParticipant:
+    """
+    SessionParticipant Entity
+    Job: Tracks a player's entry on a session's waiting list or confirmed lineup.
+    Fields:
+      - id: Unique participant entry ID (e.g., 'PART-501')
+      - session_id: Reference ID of OpenPlaySession
+      - player_id: Reference ID of Player (e.g., 'USR-9982')
+      - player_name: Handle / Display name of player
+      - elo: Player's skill rating (DUPR-style ELO)
+      - joined_at: Datetime when player joined/was added to waiting list
+      - payment_deadline: Datetime deadline for payment (joined_at + 6 hours)
+      - payment_status: 'pending', 'paid', or 'expired'
+      - payment_method: 'gcash', 'online', or 'cash'
+      - receipt: Mock file/image reference string or None (e.g., 'receipt_USR-9982.png')
+      - confirmed_at: Datetime when admin confirmed/approved payment
+      - games_played: Counter tracking how many games player completed in this session
+      - rotation_status: Current queue status ('waiting', 'playing', 'resting')
+    """
+    def __init__(self, id, session_id, player_id, player_name, elo, joined_at=None,
+                 payment_method="gcash", payment_status="pending", receipt=None, confirmed_at=None):
+        self.id = id
+        self.session_id = session_id
+        self.player_id = player_id
+        self.player_name = player_name
+        self.elo = int(elo)
+        self.joined_at = joined_at or datetime.now()
+        # 6-Hour payment deadline policy:
+        self.payment_deadline = self.joined_at + timedelta(hours=6)
+        self.payment_status = payment_status  # 'pending', 'paid', or 'expired'
+        self.payment_method = payment_method  # 'gcash', 'online', 'cash'
+        self.receipt = receipt  # mock file reference or URL string
+        self.confirmed_at = confirmed_at
+        self.games_played = 0
+        self.rotation_status = "waiting"  # 'waiting', 'playing', 'resting'
+
+    def is_deadline_passed(self):
+        """Checks if the 6-hour payment deadline has elapsed."""
+        return datetime.now() > self.payment_deadline
+
+    def to_dict(self):
+        """Serializes participant into dictionary format."""
+        return {
+            "id": self.id,
+            "session_id": self.session_id,
+            "player_id": self.player_id,
+            "player_name": self.player_name,
+            "elo": self.elo,
+            "joined_at": self.joined_at.strftime("%Y-%m-%d %H:%M:%S"),
+            "payment_deadline": self.payment_deadline.strftime("%Y-%m-%d %H:%M:%S"),
+            "payment_status": self.payment_status,
+            "payment_method": self.payment_method,
+            "receipt": self.receipt,
+            "confirmed_at": self.confirmed_at.strftime("%Y-%m-%d %H:%M:%S") if self.confirmed_at else None,
+            "games_played": self.games_played,
+            "rotation_status": self.rotation_status
+        }
+
+
+class Game:
+    """
+    Game Entity
+    Job: Represents an active or completed 2v2 Open Play match on a court.
+    Fields:
+      - id: Unique match ID (e.g., 'GAME-701')
+      - session_id: Reference ID of OpenPlaySession
+      - court_number: Assigned court number (1 to court_count)
+      - team_a: List of 2 participant dicts/objects
+      - team_b: List of 2 participant dicts/objects
+      - team_a_score: Final score for Team A (default 0)
+      - team_b_score: Final score for Team B (default 0)
+      - started_at: Datetime when match started
+      - ended_at: Datetime when match finished
+      - status: Match execution state ('in_progress', 'completed')
+    """
+    def __init__(self, id, session_id, court_number, team_a, team_b, status="in_progress"):
+        self.id = id
+        self.session_id = session_id
+        self.court_number = int(court_number)
+        self.team_a = team_a  # [participant_a1, participant_a2]
+        self.team_b = team_b  # [participant_b1, participant_b2]
+        self.team_a_score = 0
+        self.team_b_score = 0
+        self.started_at = datetime.now()
+        self.ended_at = None
+        self.status = status  # 'in_progress' or 'completed'
+
+    def to_dict(self):
+        """Serializes game data for UI rendering."""
+        return {
+            "id": self.id,
+            "session_id": self.session_id,
+            "court_number": self.court_number,
+            "team_a": [p.player_name if hasattr(p, 'player_name') else p['player_name'] for p in self.team_a],
+            "team_b": [p.player_name if hasattr(p, 'player_name') else p['player_name'] for p in self.team_b],
+            "team_a_score": self.team_a_score,
+            "team_b_score": self.team_b_score,
+            "started_at": self.started_at.strftime("%H:%M:%S"),
+            "ended_at": self.ended_at.strftime("%H:%M:%S") if self.ended_at else None,
+            "status": self.status
+        }
+
+
+# ==============================================================================
+# 3. MAIN MOCK DATABASE STORE & BUSINESS LOGIC ENGINE
+# ==============================================================================
+
 class MockDatabase:
+    """
+    In-Memory Mock Database Singleton.
+    Job: Maintains platform state across admin users, players, venues, settings,
+    and Open Play sessions + rotation execution.
+    """
     def __init__(self):
-        # Admin account
+        # Admin account credential store
         self.users = {
             "1": AdminUser(
                 id="1",
@@ -28,7 +205,7 @@ class MockDatabase:
             )
         }
 
-        # Executive Metrics
+        # Executive Platform Metrics
         self.metrics = {
             "total_users": 12847,
             "daily_active": 3241,
@@ -44,121 +221,30 @@ class MockDatabase:
             ]
         }
 
-        # System Logs
+        # System Logs & Audit Trail
         self.system_logs = [
-            {"id": "LOG-9081", "timestamp": "Today, 21:44:12", "action": "Automated RECIPE parameter adjustment applied", "admin": "System (Auto)", "status": "Completed"},
-            {"id": "LOG-9080", "timestamp": "Today, 20:15:00", "action": "Manual match forced: #USR-9982 vs #USR-9121", "admin": "Karl Alegrado", "status": "Active"},
-            {"id": "LOG-9079", "timestamp": "Today, 18:30:22", "action": "Court A4 at Downtown Paddle Club set to Maintenance", "admin": "Karl Alegrado", "status": "Active"},
+            {"id": "LOG-9081", "timestamp": "Today, 21:44:12", "action": "Automated Open Play rotation check completed", "admin": "System (Auto)", "status": "Completed"},
+            {"id": "LOG-9080", "timestamp": "Today, 20:15:00", "action": "Open Play Session #SESS-102 set to Active", "admin": "Karl Alegrado", "status": "Active"},
+            {"id": "LOG-9079", "timestamp": "Today, 18:30:22", "action": "Payment confirmed for Participant #PART-502", "admin": "Karl Alegrado", "status": "Active"},
             {"id": "LOG-9078", "timestamp": "Today, 15:10:05", "action": "Penalty issued for User #USR-8812 (Toxic chat report)", "admin": "Sarah Jenkins", "status": "Verified"},
             {"id": "LOG-9077", "timestamp": "Yesterday, 22:00:19", "action": "System backup completed (24.8 GB)", "admin": "System (Auto)", "status": "Completed"},
         ]
 
-        # Player Management Data
+        # Player Registry (Skill ELO Ratings)
         self.players = [
-            {
-                "id": "USR-9982",
-                "name": "Sarah Jenkins",
-                "elo": 1942,
-                "tier": "Diamond",
-                "win_rate": "74.2%",
-                "status": "Active",
-                "matches": 312,
-                "reports": 0,
-                "notes": "Top tier competitive player. Consistent league attendee."
-            },
-            {
-                "id": "USR-9921",
-                "name": "Karl Alegrado",
-                "elo": 1835,
-                "tier": "Gold",
-                "win_rate": "68.5%",
-                "status": "Active",
-                "matches": 240,
-                "reports": 0,
-                "notes": "Platform developer & tournament organizer."
-            },
-            {
-                "id": "USR-9804",
-                "name": "Darnell Castro",
-                "elo": 1690,
-                "tier": "Platinum",
-                "win_rate": "62.1%",
-                "status": "Active",
-                "matches": 189,
-                "reports": 1,
-                "notes": "Regular evening queue player."
-            },
-            {
-                "id": "USR-9712",
-                "name": "Grace Santos",
-                "elo": 2010,
-                "tier": "Diamond",
-                "win_rate": "81.0%",
-                "status": "Active",
-                "matches": 450,
-                "reports": 0,
-                "notes": "National pickleball championship contender."
-            },
-            {
-                "id": "USR-9650",
-                "name": "Jaye Antonio",
-                "elo": 1420,
-                "tier": "Silver",
-                "win_rate": "51.4%",
-                "status": "Frozen",
-                "matches": 95,
-                "reports": 3,
-                "notes": "Temporary cooldown pending identity verification."
-            },
-            {
-                "id": "USR-9511",
-                "name": "Vaughn Hancock",
-                "elo": 1550,
-                "tier": "Gold",
-                "win_rate": "55.8%",
-                "status": "Active",
-                "matches": 130,
-                "reports": 0,
-                "notes": "Casual weekend player."
-            },
-            {
-                "id": "USR-9402",
-                "name": "Mark Rivera",
-                "elo": 1210,
-                "tier": "Bronze",
-                "win_rate": "42.0%",
-                "status": "Active",
-                "matches": 60,
-                "reports": 0,
-                "notes": "New member, beginner league."
-            },
-            {
-                "id": "USR-9311",
-                "name": "Mabelle Kimball",
-                "elo": 1780,
-                "tier": "Platinum",
-                "win_rate": "69.4%",
-                "status": "Banned",
-                "matches": 210,
-                "reports": 8,
-                "notes": "Banned for repeated unsportsmanlike conduct in ranked ladder."
-            }
+            {"id": "USR-9982", "name": "Sarah Jenkins", "elo": 1942, "tier": "Diamond", "win_rate": "74.2%", "status": "Active", "matches": 312, "reports": 0, "notes": "Top tier competitive player. Consistent league attendee."},
+            {"id": "USR-9921", "name": "Karl Alegrado", "elo": 1835, "tier": "Gold", "win_rate": "68.5%", "status": "Active", "matches": 240, "reports": 0, "notes": "Platform developer & tournament organizer."},
+            {"id": "USR-9804", "name": "Darnell Castro", "elo": 1690, "tier": "Platinum", "win_rate": "62.1%", "status": "Active", "matches": 189, "reports": 1, "notes": "Regular evening open play player."},
+            {"id": "USR-9712", "name": "Grace Santos", "elo": 2010, "tier": "Diamond", "win_rate": "81.0%", "status": "Active", "matches": 450, "reports": 0, "notes": "National pickleball championship contender."},
+            {"id": "USR-9650", "name": "Jaye Antonio", "elo": 1420, "tier": "Silver", "win_rate": "51.4%", "status": "Frozen", "matches": 95, "reports": 3, "notes": "Temporary cooldown pending identity verification."},
+            {"id": "USR-9511", "name": "Vaughn Hancock", "elo": 1550, "tier": "Gold", "win_rate": "55.8%", "status": "Active", "matches": 130, "reports": 0, "notes": "Casual weekend player."},
+            {"id": "USR-9402", "name": "Mark Rivera", "elo": 1210, "tier": "Bronze", "win_rate": "42.0%", "status": "Active", "matches": 60, "reports": 0, "notes": "New member, beginner league."},
+            {"id": "USR-9311", "name": "Mabelle Kimball", "elo": 1780, "tier": "Platinum", "win_rate": "69.4%", "status": "Banned", "matches": 210, "reports": 8, "notes": "Banned for repeated unsportsmanlike conduct."},
+            {"id": "USR-9201", "name": "Leo Valdes", "elo": 1620, "tier": "Gold", "win_rate": "60.0%", "status": "Active", "matches": 110, "reports": 0, "notes": "Solid mid-tier player."},
+            {"id": "USR-9110", "name": "Elmo Villanueva", "elo": 1880, "tier": "Diamond", "win_rate": "71.0%", "status": "Active", "matches": 290, "reports": 0, "notes": "Fast power server."},
+            {"id": "USR-9004", "name": "Tina Laurel", "elo": 1490, "tier": "Silver", "win_rate": "53.2%", "status": "Active", "matches": 85, "reports": 0, "notes": "Consistent drop shot player."},
+            {"id": "USR-8910", "name": "Rico Solis", "elo": 1710, "tier": "Platinum", "win_rate": "64.5%", "status": "Active", "matches": 175, "reports": 0, "notes": "Aggressive kitchen player."}
         ]
-
-        # Matchmaking Configurator Data
-        self.matchmaking_queue = [
-            {"p1": "USR-9982 (Sarah J.)", "p2": "USR-9712 (Grace S.)", "mode": "Ranked Match", "wait": "12s", "status": "Matched"},
-            {"p1": "USR-9921 (Karl A.)", "p2": "USR-9511 (Vaughn H.)", "mode": "Public Casual", "wait": "45s", "status": "In Queue"},
-            {"p1": "USR-9804 (Darnell C.)", "p2": "USR-9311 (Mabelle K.)", "mode": "Ranked Match", "wait": "78s", "status": "Calibrating"},
-            {"p1": "USR-9402 (Mark R.)", "p2": "USR-9650 (Jaye A.)", "mode": "Public Casual", "wait": "28s", "status": "In Queue"},
-            {"p1": "USR-9110 (Elmo V.)", "p2": "USR-9004 (Tina L.)", "mode": "Tournament Queue", "wait": "95s", "status": "Matched"}
-        ]
-
-        self.matchmaking_params = {
-            "max_skill_gap": 50,
-            "density_multiplier": 1.25,
-            "smart_matchmaking": True
-        }
 
         # Venue & Court Manager Data
         self.venues = [
@@ -171,8 +257,6 @@ class MockDatabase:
         self.time_slots = ["08:00 AM", "10:00 AM", "12:00 PM", "02:00 PM", "04:00 PM", "06:00 PM"]
         self.courts = ["Court 1", "Court 2", "Court 3", "Court 4", "Court 5"]
 
-        # Court Status Grid: slot -> court -> status
-        # Statuses: Available, Booked, Maintenance, Reserved
         self.court_grid = {
             "08:00 AM": {"Court 1": "Available", "Court 2": "Booked", "Court 3": "Maintenance", "Court 4": "Available", "Court 5": "Available"},
             "10:00 AM": {"Court 1": "Booked", "Court 2": "Booked", "Court 3": "Maintenance", "Court 4": "Reserved", "Court 5": "Available"},
@@ -182,75 +266,161 @@ class MockDatabase:
             "06:00 PM": {"Court 1": "Available", "Court 2": "Booked", "Court 3": "Booked", "Court 4": "Available", "Court 5": "Available"},
         }
 
-        # Moderation Hub Data
+        # Moderation Data
         self.reported_players = [
-            {
-                "id": "REP-801",
-                "player_id": "USR-9311",
-                "player_name": "Mabelle Kimball",
-                "reporter": "USR-9982",
-                "reason": "Toxic language in lobby chat & stall tactics",
-                "severity": "High",
-                "date": "Today, 19:40",
-                "status": "Pending Action"
-            },
-            {
-                "id": "REP-802",
-                "player_id": "USR-9804",
-                "player_name": "Darnell Castro",
-                "reporter": "USR-9402",
-                "reason": "Unannounced match rage quit",
-                "severity": "Medium",
-                "date": "Yesterday, 21:15",
-                "status": "Under Review"
-            },
-            {
-                "id": "REP-803",
-                "player_id": "USR-9650",
-                "player_name": "Jaye Antonio",
-                "reporter": "USR-9712",
-                "reason": "Suspicious disconnect rate during ranked playoff",
-                "severity": "Low",
-                "date": "Aug 10, 16:00",
-                "status": "Under Review"
-            }
+            {"id": "REP-801", "player_id": "USR-9311", "player_name": "Mabelle Kimball", "reporter": "USR-9982", "reason": "Toxic language in lobby chat & stall tactics", "severity": "High", "date": "Today, 19:40", "status": "Pending Action"},
+            {"id": "REP-802", "player_id": "USR-9804", "player_name": "Darnell Castro", "reporter": "USR-9402", "reason": "Unannounced match rage quit", "severity": "Medium", "date": "Yesterday, 21:15", "status": "Under Review"},
         ]
 
         self.chat_logs = {
             "USR-9311": [
                 {"time": "19:35", "sender": "Mabelle Kimball", "text": "Are you guys serious? Learn how to serve properly.", "toxic": True},
                 {"time": "19:36", "sender": "Sarah Jenkins", "text": "Hey keep it friendly please.", "toxic": False},
-                {"time": "19:37", "sender": "Mabelle Kimball", "text": "Whatever, I'm just going to idle and let you lose.", "toxic": True}
-            ],
-            "USR-9804": [
-                {"time": "21:10", "sender": "Darnell Castro", "text": "Lag spikes again, GG I'm out.", "toxic": False}
             ]
         }
 
         self.tournaments = [
             {"id": "EVT-101", "title": "Autumn Open 2026", "venue": "Current Paddle Club", "date": "Nov 15, 2026", "status": "Published", "tag": "TOURNAMENT"},
-            {"id": "EVT-102", "title": "Weekend Warmup", "venue": "Quantum Courts", "date": "Nov 22, 2026", "status": "Draft", "tag": "MONTHLY DUPR"},
-            {"id": "EVT-103", "title": "Junior Showcase", "venue": "Harbor Sports Center", "date": "Dec 01, 2026", "status": "Published", "tag": "ACADEMY"}
         ]
 
-        # System Settings RECIPE Framework Sliders (0 - 100)
         self.recipe_settings = {
-            "recognition": 85,
-            "engagement": 72,
-            "competition": 90,
-            "improvement": 68,
-            "play": 95,
-            "experience": 88
+            "recognition": 85, "engagement": 72, "competition": 90,
+            "improvement": 68, "play": 95, "experience": 88
         }
 
         self.audit_logs = [
-            {"timestamp": "Friday, 21:47:19", "admin": "Karl Alegrado", "action": "Updated RECIPE Slider Improvement to 68 PTS", "ip": "192.168.1.45"},
-            {"timestamp": "Friday, 20:41:02", "admin": "Karl Alegrado", "action": "Issued Toxic Warning to User #USR-9311", "ip": "192.168.1.45"},
-            {"timestamp": "Today, 17:15:33", "admin": "Sarah Jenkins", "action": "Blocked Court A3 at Downtown Paddle Club for maintenance", "ip": "10.0.0.12"},
-            {"timestamp": "Thursday, 14:02:11", "admin": "Karl Alegrado", "action": "Updated manual credit +100 PTS for User #USR-9982", "ip": "192.168.1.45"},
-            {"timestamp": "Wednesday, 11:20:45", "admin": "System Tech", "action": "Automated system update & security patch v3.4.1", "ip": "127.0.0.1"}
+            {"timestamp": "Today, 20:00:00", "admin": "Karl Alegrado", "action": "Initialized Open Play Platform Engine", "ip": "192.168.1.45"}
         ]
 
+        # ======================================================================
+        # OPEN PLAY MOCK STORES & SEED DATA
+        # ======================================================================
+        self.open_play_sessions = {}
+        self.session_participants = {}  # session_id -> list of SessionParticipant
+        self.session_games = {}         # session_id -> list of Game
+        self.past_combinations = {}     # session_id -> set of frozensets of player_ids
+
+        # Seed Sample Open Play Sessions
+        self._seed_open_play_data()
+
+    # --------------------------------------------------------------------------
+    # SEED DATA INITIALIZER
+    # --------------------------------------------------------------------------
+    def _seed_open_play_data(self):
+        """Populates realistic initial Open Play sessions for demonstration."""
+        now = datetime.now()
+        today_str = now.strftime("%Y-%m-%d")
+
+        # Session 1: Active Session with Live Court Rotation
+        s1 = OpenPlaySession(
+            id="SESS-101",
+            title="Prime Evening Open Play",
+            date=today_str,
+            start_time="06:00 PM",
+            end_time="09:00 PM",
+            court_count=2,
+            max_players=12,
+            status="active"
+        )
+        self.open_play_sessions[s1.id] = s1
+        self.session_participants[s1.id] = []
+        self.session_games[s1.id] = []
+        self.past_combinations[s1.id] = set()
+
+        # Add Confirmed & Paid Players to Session 1
+        p_seeds = [
+            ("USR-9982", "Sarah Jenkins", 1942, "paid", "online", "receipt_usr9982.jpg", 1),
+            ("USR-9712", "Grace Santos", 2010, "paid", "gcash", "receipt_usr9712.png", 1),
+            ("USR-9921", "Karl Alegrado", 1835, "paid", "cash", None, 1),
+            ("USR-9511", "Vaughn Hancock", 1550, "paid", "gcash", "receipt_usr9511.jpg", 1),
+            ("USR-9804", "Darnell Castro", 1690, "paid", "online", "receipt_usr9804.jpg", 0),
+            ("USR-9201", "Leo Valdes", 1620, "paid", "cash", None, 0),
+            ("USR-9110", "Elmo Villanueva", 1880, "paid", "gcash", "receipt_usr9110.png", 0),
+            ("USR-9004", "Tina Laurel", 1490, "paid", "online", "receipt_usr9004.jpg", 0),
+            ("USR-9402", "Mark Rivera", 1210, "pending", "gcash", "receipt_usr9402_mock.jpg", 0),  # Uploaded receipt pending review
+            ("USR-8910", "Rico Solis", 1710, "pending", "online", None, 0),  # Pending payment, deadline counting down
+        ]
+
+        part_counter = 501
+        for pid, pname, elo, pstatus, pmethod, receipt, gcount in p_seeds:
+            p_obj = SessionParticipant(
+                id=f"PART-{part_counter}",
+                session_id=s1.id,
+                player_id=pid,
+                player_name=pname,
+                elo=elo,
+                joined_at=now - timedelta(hours=2),
+                payment_method=pmethod,
+                payment_status=pstatus,
+                receipt=receipt,
+                confirmed_at=now - timedelta(hours=1.5) if pstatus == "paid" else None
+            )
+            p_obj.games_played = gcount
+            self.session_participants[s1.id].append(p_obj)
+            part_counter += 1
+
+        # Seed Active Court Game for Session 1
+        conf_parts = [p for p in self.session_participants[s1.id] if p.payment_status == "paid"]
+        # Players 0-3 playing on Court 1
+        for p in conf_parts[:4]:
+            p.rotation_status = "playing"
+
+        g1 = Game(
+            id="GAME-701",
+            session_id=s1.id,
+            court_number=1,
+            team_a=[conf_parts[0], conf_parts[3]],  # Sarah (1942) + Vaughn (1550) = 3492
+            team_b=[conf_parts[1], conf_parts[2]],  # Grace (2010) + Karl (1835) = 3845
+            status="in_progress"
+        )
+        self.session_games[s1.id].append(g1)
+
+        # Session 2: Upcoming Session with Pending Payment Approvals & Receipts
+        s2 = OpenPlaySession(
+            id="SESS-102",
+            title="Weekend DUPR Challenge Open Play",
+            date=(now + timedelta(days=2)).strftime("%Y-%m-%d"),
+            start_time="09:00 AM",
+            end_time="12:00 PM",
+            court_count=3,
+            max_players=16,
+            status="upcoming"
+        )
+        self.open_play_sessions[s2.id] = s2
+        self.session_participants[s2.id] = []
+        self.session_games[s2.id] = []
+        self.past_combinations[s2.id] = set()
+
+        # Add participants to Session 2 (Some with receipts to review, one expired)
+        s2_seeds = [
+            ("USR-9982", "Sarah Jenkins", 1942, "paid", "online", "receipt_sarah.png", True),
+            ("USR-9712", "Grace Santos", 2010, "pending", "gcash", "receipt_grace_gcash.jpg", False), # Green icon receipt review!
+            ("USR-9804", "Darnell Castro", 1690, "pending", "online", "receipt_darnell_online.png", False), # Green icon receipt review!
+            ("USR-9402", "Mark Rivera", 1210, "pending", "cash", None, False),
+            ("USR-9650", "Jaye Antonio", 1420, "expired", "online", None, False), # 6-hour deadline expired
+        ]
+
+        for pid, pname, elo, pstatus, pmethod, receipt, is_conf in s2_seeds:
+            # For expired seed, set joined_at 7 hours ago
+            joined_dt = now - timedelta(hours=7) if pstatus == "expired" else now - timedelta(hours=1)
+            p_obj = SessionParticipant(
+                id=f"PART-{part_counter}",
+                session_id=s2.id,
+                player_id=pid,
+                player_name=pname,
+                elo=elo,
+                joined_at=joined_dt,
+                payment_method=pmethod,
+                payment_status=pstatus,
+                receipt=receipt,
+                confirmed_at=now if is_conf else None
+            )
+            self.session_participants[s2.id].append(p_obj)
+            part_counter += 1
+
+    # --------------------------------------------------------------------------
+    # USER & PLAYER LOGIC
+    # --------------------------------------------------------------------------
     def get_user_by_id(self, user_id):
         return self.users.get(str(user_id))
 
@@ -298,6 +468,346 @@ class MockDatabase:
             "admin": admin,
             "status": "Completed"
         })
+
+    # ==========================================================================
+    # 4. OPEN PLAY ADMIN BUSINESS LOGIC METHODS
+    # ==========================================================================
+
+    def create_open_play_session(self, title, date, start_time, end_time, court_count, max_players):
+        """
+        Feature #1: Create an Open Play Session.
+        Job: Instantiates a new OpenPlaySession and registers its participant/game queues.
+        """
+        session_id = f"SESS-{101 + len(self.open_play_sessions)}"
+        session = OpenPlaySession(
+            id=session_id,
+            title=title or f"Open Play - {date}",
+            date=date,
+            start_time=start_time,
+            end_time=end_time,
+            court_count=court_count,
+            max_players=max_players,
+            status="upcoming"
+        )
+        self.open_play_sessions[session_id] = session
+        self.session_participants[session_id] = []
+        self.session_games[session_id] = []
+        self.past_combinations[session_id] = set()
+
+        self.add_audit_log(f"Created Open Play Session '{session.title}' ({court_count} Courts, Max {max_players} Players)")
+        return session
+
+    def get_open_play_sessions(self):
+        """Returns all Open Play sessions sorted by creation date."""
+        return list(self.open_play_sessions.values())
+
+    def get_open_play_session(self, session_id):
+        """
+        Job: Fetches session details and lazily checks 6-hour payment expirations.
+        """
+        session = self.open_play_sessions.get(session_id)
+        if session:
+            self.lazy_check_expirations(session_id)
+        return session
+
+    def update_session_status(self, session_id, new_status):
+        """
+        Job: Updates session lifecycle state ('upcoming', 'active', 'completed').
+        When set to 'active', automatically triggers the rotation engine!
+        """
+        session = self.get_open_play_session(session_id)
+        if not session:
+            return False
+
+        old_status = session.status
+        session.status = new_status
+        self.add_audit_log(f"Updated Session {session_id} status from '{old_status}' to '{new_status}'")
+
+        if new_status == "active":
+            # Run automatic rotation engine immediately to fill courts
+            self.run_rotation_engine(session_id)
+        elif new_status == "completed":
+            # Clear playing rotation status on active games
+            for g in self.session_games.get(session_id, []):
+                if g.status == "in_progress":
+                    g.status = "completed"
+                    g.ended_at = datetime.now()
+
+        return True
+
+    def lazy_check_expirations(self, session_id):
+        """
+        Feature #2: Manage the Waiting List (Lazy Expiration Check).
+        Job: Checks if 6 hours have passed since joined_at for pending payments.
+        If deadline passed and payment_status is still 'pending', marks it 'expired'.
+        No background cron job needed — called dynamically whenever list is accessed.
+        """
+        participants = self.session_participants.get(session_id, [])
+        now = datetime.now()
+        for p in participants:
+            if p.payment_status == "pending" and now > p.payment_deadline:
+                p.payment_status = "expired"
+
+    def add_session_participant(self, session_id, player_id, payment_method="gcash", payment_status="pending", receipt=None):
+        """
+        Feature #2: Add Player to Session Waiting List.
+        Job: Adds a registered player to a session's waiting list with a 6-hour payment window.
+        """
+        session = self.get_open_play_session(session_id)
+        if not session:
+            return None, "Session not found."
+
+        # Check capacity
+        participants = self.session_participants.get(session_id, [])
+        if len(participants) >= session.max_players:
+            return None, "Session player capacity reached."
+
+        # Fetch player info
+        player_info = next((p for p in self.players if p["id"] == player_id), None)
+        player_name = player_info["name"] if player_info else f"Player {player_id}"
+        elo = player_info["elo"] if player_info else 1500
+
+        # Prevent duplicate enrollment in same session
+        if any(p.player_id == player_id for p in participants):
+            return None, f"Player {player_name} is already registered in this session."
+
+        part_id = f"PART-{501 + len(participants) + len(self.session_participants)}"
+        joined_at = datetime.now()
+
+        participant = SessionParticipant(
+            id=part_id,
+            session_id=session_id,
+            player_id=player_id,
+            player_name=player_name,
+            elo=elo,
+            joined_at=joined_at,
+            payment_method=payment_method,
+            payment_status=payment_status,
+            receipt=receipt,
+            confirmed_at=joined_at if payment_status == "paid" else None
+        )
+
+        participants.append(participant)
+        self.add_audit_log(f"Added player {player_name} to session {session_id} waiting list ({payment_method.upper()}, status: {payment_status})")
+
+        # If session is active and payment was pre-marked paid, trigger rotation check
+        if session.status == "active" and payment_status == "paid":
+            self.run_rotation_engine(session_id)
+
+        return participant, "Player added to waiting list successfully!"
+
+    def upload_participant_receipt(self, participant_id, receipt_filename):
+        """
+        Feature #3: Receipt Upload Handler.
+        Job: Attaches a receipt reference string to a participant entry.
+        Triggers green receipt icon indicator in admin view.
+        """
+        for s_id, parts in self.session_participants.items():
+            for p in parts:
+                if p.id == participant_id:
+                    p.receipt = receipt_filename
+                    self.add_audit_log(f"Uploaded payment receipt reference for participant {p.player_name}")
+                    return True, "Receipt uploaded successfully."
+        return False, "Participant not found."
+
+    def confirm_participant_payment(self, participant_id):
+        """
+        Feature #3: Admin Payment Review & Confirmation.
+        Job: Admin approves payment. Marks status 'paid', sets confirmed_at timestamp.
+        Only once payment_status is 'paid' does player enter confirmed rotation pool!
+        """
+        for session_id, parts in self.session_participants.items():
+            for p in parts:
+                if p.id == participant_id:
+                    p.payment_status = "paid"
+                    p.confirmed_at = datetime.now()
+                    self.add_audit_log(f"Admin confirmed payment for player {p.player_name} in session {session_id}")
+
+                    # If session is active, evaluate rotation queue immediately!
+                    session = self.open_play_sessions.get(session_id)
+                    if session and session.status == "active":
+                        self.run_rotation_engine(session_id)
+
+                    return True, f"Payment confirmed for {p.player_name}!"
+        return False, "Participant not found."
+
+    # --------------------------------------------------------------------------
+    # FEATURE #4: AUTOMATIC ROTATION ENGINE (DUPR-STYLE BALANCING & FAIRNESS)
+    # --------------------------------------------------------------------------
+
+    def run_rotation_engine(self, session_id):
+        """
+        Feature #4: Automatic Rotation Engine.
+        Job: Executes automatic game creation for an active session.
+        Rules:
+          1. Pull next 4 confirmed ('paid') players who have played the FEWEST games so far.
+          2. Split into 2 teams of 2, balanced as evenly as possible by ELO rating.
+          3. Avoid repeating exact same 4-player group until rest of rotation has taken turn.
+          4. Assign to available court up to court_count limit.
+          5. Update rotation_status to 'playing'.
+        """
+        session = self.open_play_sessions.get(session_id)
+        if not session or session.status != "active":
+            return []
+
+        # Step 1: Lazily check expirations on waiting list
+        self.lazy_check_expirations(session_id)
+
+        participants = self.session_participants.get(session_id, [])
+        games = self.session_games.get(session_id, [])
+
+        # Find currently occupied courts
+        occupied_courts = {g.court_number for g in games if g.status == "in_progress"}
+
+        # Find available court numbers (1 to court_count)
+        available_courts = [c for c in range(1, session.court_count + 1) if c not in occupied_courts]
+        if not available_courts:
+            return []  # All courts busy!
+
+        # Filter confirmed players ('paid') who are currently 'waiting'
+        confirmed_waiting = [
+            p for p in participants
+            if p.payment_status == "paid" and p.rotation_status == "waiting"
+        ]
+
+        created_games = []
+
+        # Fill available courts as long as we have 4+ confirmed waiting players
+        while available_courts and len(confirmed_waiting) >= 4:
+            # Sort by fewest games played first (fairness), break ties by joined_at
+            confirmed_waiting.sort(key=lambda p: (p.games_played, p.joined_at))
+
+            # Select 4 candidate players
+            # Check combination repeat history
+            chosen_4 = self._select_fair_four_players(confirmed_waiting, session_id)
+            if len(chosen_4) < 4:
+                break
+
+            # Remove chosen 4 from waiting queue for next loop iteration
+            for p in chosen_4:
+                confirmed_waiting.remove(p)
+
+            # Step 2: DUPR-style ELO Balancing into 2 teams of 2
+            team_a, team_b = self._balance_teams_by_elo(chosen_4)
+
+            # Assign next open court
+            court_num = available_courts.pop(0)
+
+            # Mark players as playing
+            for p in chosen_4:
+                p.rotation_status = "playing"
+
+            # Record 4-player combination in history store
+            group_key = frozenset([p.player_id for p in chosen_4])
+            if session_id not in self.past_combinations:
+                self.past_combinations[session_id] = set()
+            self.past_combinations[session_id].add(group_key)
+
+            # Create Game Instance
+            game_id = f"GAME-{701 + len(games)}"
+            game = Game(
+                id=game_id,
+                session_id=session_id,
+                court_number=court_num,
+                team_a=team_a,
+                team_b=team_b,
+                status="in_progress"
+            )
+
+            games.append(game)
+            created_games.append(game)
+
+            player_names = ", ".join([p.player_name for p in chosen_4])
+            self.add_audit_log(f"Auto-Rotation: Assigned Game {game_id} on Court #{court_num} with players [{player_names}]")
+
+        return created_games
+
+    def _select_fair_four_players(self, candidates, session_id):
+        """
+        Helper: Selects 4 players prioritizing fewest games played while avoiding
+        repeating the exact same 4-player group if another candidate set exists.
+        """
+        if len(candidates) < 4:
+            return []
+
+        history = self.past_combinations.get(session_id, set())
+
+        # Primary selection: first 4 sorted candidates
+        primary = candidates[:4]
+        group_key = frozenset([p.player_id for p in primary])
+
+        # If primary group was not used recently, pick them!
+        if group_key not in history or len(candidates) == 4:
+            return primary
+
+        # If primary group was already paired, check if swapping 4th candidate with 5th candidate creates fresh group
+        if len(candidates) >= 5:
+            alt_four = [candidates[0], candidates[1], candidates[2], candidates[4]]
+            alt_key = frozenset([p.player_id for p in alt_four])
+            if alt_key not in history:
+                return alt_four
+
+        # Fallback if all variations exhausted: use primary
+        return primary
+
+    def _balance_teams_by_elo(self, four_players):
+        """
+        Option A: Random Social Shuffling.
+        Job: Takes 4 players, shuffles them randomly, and splits them into 2 teams of 2.
+        """
+        import random
+        shuffled = list(four_players)
+        random.shuffle(shuffled)
+        team_a = [shuffled[0], shuffled[1]]
+        team_b = [shuffled[2], shuffled[3]]
+        return team_a, team_b
+
+    def finish_game(self, game_id, score_a=11, score_b=9):
+        """
+        Feature #4: Finish Game & Rotate Queue.
+        Job: Manual admin action to complete a court game.
+        Increments games_played by 1 for each player, returns them to waiting status,
+        and automatically triggers run_rotation_engine to seat next waiting players!
+        """
+        target_game = None
+        target_session_id = None
+
+        for s_id, games in self.session_games.items():
+            for g in games:
+                if g.id == game_id:
+                    target_game = g
+                    target_session_id = s_id
+                    break
+
+        if not target_game:
+            return False, "Game not found.", []
+
+        if target_game.status == "completed":
+            return False, "Game is already finished.", []
+
+        # Mark game completed
+        target_game.status = "completed"
+        target_game.team_a_score = int(score_a)
+        target_game.team_b_score = int(score_b)
+        target_game.ended_at = datetime.now()
+
+        # Update participants: increment games_played, set status to 'waiting'
+        all_match_players = target_game.team_a + target_game.team_b
+        for p in all_match_players:
+            p.games_played += 1
+            p.rotation_status = "waiting"
+
+        self.add_audit_log(f"Game {game_id} (Court #{target_game.court_number}) finished (Score: {score_a}-{score_b}). Players returned to rotation queue.")
+
+        # AUTOMATIC NEXT ROTATION: Pull next 4 players onto freed court!
+        new_games = self.run_rotation_engine(target_session_id)
+
+        msg = f"Game marked finished ({score_a}-{score_b})."
+        if new_games:
+            msg += f" Auto-rotation seated new match on Court #{new_games[0].court_number}!"
+
+        return True, msg, new_games
+
 
 # Global singleton database instance
 db = MockDatabase()

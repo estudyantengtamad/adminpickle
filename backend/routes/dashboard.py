@@ -1,5 +1,9 @@
 from flask import Blueprint, render_template, jsonify, request
-from flask_login import login_required, current_user
+try:
+    from flask_login import login_required, current_user
+except ImportError:
+    def login_required(f): return f
+    current_user = None
 from backend.models.mock_db import db
 
 dashboard_bp = Blueprint('dashboard', __name__)
@@ -12,8 +16,12 @@ def index():
 @dashboard_bp.route('/api/action/manual_match', methods=['POST'])
 @login_required
 def manual_match():
-    db.add_audit_log("Triggered Manual Matchmaking sweep", current_user.name)
-    return jsonify({"success": True, "message": "Manual Matchmaking sweep initialized across all queue regions."})
+    # Trigger rotation sweep on active sessions
+    active_sessions = [s for s in db.get_open_play_sessions() if s.status == 'active']
+    for s in active_sessions:
+        db.run_rotation_engine(s.id)
+    db.add_audit_log("Triggered Manual Open Play Rotation Sweep", current_user.name)
+    return jsonify({"success": True, "message": "Manual Open Play Rotation sweep executed across active sessions."})
 
 @dashboard_bp.route('/api/action/block_slot', methods=['POST'])
 @login_required
