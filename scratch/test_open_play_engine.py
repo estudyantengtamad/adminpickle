@@ -81,12 +81,12 @@ def run_tests():
     print(f"✅ Test 5 Passed: Rotation Engine Seated Game #{active_g.id} on Court #1 (Team A: {[p.player_name for p in active_g.team_a]} vs Team B: {[p.player_name for p in active_g.team_b]})")
 
     # 6. Finish Game & Verify Auto-Rotation Queue
-    success, finish_msg = db.finish_game(active_g.id, score_a=11, score_b=8)
+    success, finish_msg, _ = db.finish_game(active_g.id, score_a=11, score_b=8)
     assert success is True
     assert active_g.status == "completed"
     for p in active_g.team_a + active_g.team_b:
         assert p.games_played == 1
-        assert p.rotation_status == "waiting"
+        assert p.rotation_status == "playing"
 
     print(f"✅ Test 6 Passed: Game Finished ({finish_msg}) & Games Played Incremented to 1")
 

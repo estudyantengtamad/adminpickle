@@ -16,7 +16,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 # 1. ADMIN USER & AUTHENTICATION MODEL
 # ==============================================================================
 
-class AdminUser(UserMixin):
+class AdminUser(UserMixin):  # type: ignore[misc]
     """
     Represents an authenticated Administrative User on the PickleLegends platform.
     Job: Wraps user credentials and role details for Flask-Login integration.
@@ -474,11 +474,12 @@ class MockDatabase:
     # ==========================================================================
 
     def create_open_play_session(self, title, date, start_time, end_time, court_count, max_players):
-        """
-        Feature #1: Create an Open Play Session.
-        Job: Instantiates a new OpenPlaySession and registers its participant/game queues.
-        """
-        session_id = f"SESS-{101 + len(self.open_play_sessions)}"
+        """Creates a new Open Play session (e.g. Saturday 9:00 AM on 4 courts)."""
+        existing_sids = set(self.open_play_sessions.keys())
+        counter = 101
+        while f"SESS-{counter}" in existing_sids:
+            counter += 1
+        session_id = f"SESS-{counter}"
         session = OpenPlaySession(
             id=session_id,
             title=title or f"Open Play - {date}",
@@ -502,9 +503,7 @@ class MockDatabase:
         return list(self.open_play_sessions.values())
 
     def get_open_play_session(self, session_id):
-        """
-        Job: Fetches session details and lazily checks 6-hour payment expirations.
-        """
+        """Fetches session details and automatically checks if any pending payments have hit the 6-hour limit."""
         session = self.open_play_sessions.get(session_id)
         if session:
             self.lazy_check_expirations(session_id)
@@ -512,8 +511,8 @@ class MockDatabase:
 
     def update_session_status(self, session_id, new_status):
         """
-        Job: Updates session lifecycle state ('upcoming', 'active', 'completed').
-        When set to 'active', automatically triggers the rotation engine!
+        Changes session state ('upcoming' -> 'active' -> 'completed').
+        Starting a session ('active') automatically runs the rotation engine to seat players.
         """
         session = self.get_open_play_session(session_id)
         if not session:
@@ -537,10 +536,8 @@ class MockDatabase:
 
     def lazy_check_expirations(self, session_id):
         """
-        Feature #2: Manage the Waiting List (Lazy Expiration Check).
-        Job: Checks if 6 hours have passed since joined_at for pending payments.
-        If deadline passed and payment_status is still 'pending', marks it 'expired'.
-        No background cron job needed — called dynamically whenever list is accessed.
+        Checks if 6 hours have passed since a player joined with pending payment.
+        If deadline passed and payment is still 'pending', marks it 'expired'.
         """
         participants = self.session_participants.get(session_id, [])
         now = datetime.now()
@@ -549,10 +546,7 @@ class MockDatabase:
                 p.payment_status = "expired"
 
     def add_session_participant(self, session_id, player_id, payment_method="gcash", payment_status="pending", receipt=None):
-        """
-        Feature #2: Add Player to Session Waiting List.
-        Job: Adds a registered player to a session's waiting list with a 6-hour payment window.
-        """
+        """Enrolls a registered player into a session's waiting list with a 6-hour payment window."""
         session = self.get_open_play_session(session_id)
         if not session:
             return None, "Session not found."
@@ -571,7 +565,11 @@ class MockDatabase:
         if any(p.player_id == player_id for p in participants):
             return None, f"Player {player_name} is already registered in this session."
 
-        part_id = f"PART-{501 + len(participants) + len(self.session_participants)}"
+        existing_ids = {p.id for parts in self.session_participants.values() for p in parts}
+        counter = 501
+        while f"PART-{counter}" in existing_ids:
+            counter += 1
+        part_id = f"PART-{counter}"
         joined_at = datetime.now()
 
         participant = SessionParticipant(
@@ -597,11 +595,7 @@ class MockDatabase:
         return participant, "Player added to waiting list successfully!"
 
     def upload_participant_receipt(self, participant_id, receipt_filename):
-        """
-        Feature #3: Receipt Upload Handler.
-        Job: Attaches a receipt reference string to a participant entry.
-        Triggers green receipt icon indicator in admin view.
-        """
+        """Attaches a receipt screenshot filename to a player's registration."""
         for s_id, parts in self.session_participants.items():
             for p in parts:
                 if p.id == participant_id:
@@ -612,9 +606,8 @@ class MockDatabase:
 
     def confirm_participant_payment(self, participant_id):
         """
-        Feature #3: Admin Payment Review & Confirmation.
-        Job: Admin approves payment. Marks status 'paid', sets confirmed_at timestamp.
-        Only once payment_status is 'paid' does player enter confirmed rotation pool!
+        Approves a player's payment (paid).
+        Only once payment is approved does the player enter the court rotation pool!
         """
         for session_id, parts in self.session_participants.items():
             for p in parts:
@@ -632,19 +625,17 @@ class MockDatabase:
         return False, "Participant not found."
 
     # --------------------------------------------------------------------------
-    # FEATURE #4: AUTOMATIC ROTATION ENGINE (DUPR-STYLE BALANCING & FAIRNESS)
+    # AUTOMATIC ROTATION ENGINE (FAIR PLAY MATCHMAKING)
     # --------------------------------------------------------------------------
 
-    def run_rotation_engine(self, session_id):
+    def run_rotation_engine(self, session_id, target_court=None):
         """
-        Feature #4: Automatic Rotation Engine.
-        Job: Executes automatic game creation for an active session.
-        Rules:
-          1. Pull next 4 confirmed ('paid') players who have played the FEWEST games so far.
-          2. Split into 2 teams of 2, balanced as evenly as possible by ELO rating.
-          3. Avoid repeating exact same 4-player group until rest of rotation has taken turn.
-          4. Assign to available court up to court_count limit.
-          5. Update rotation_status to 'playing'.
+        Automatic Court Rotation Engine:
+        1. Selects 4 paid waiting players with the FEWEST games played.
+        2. Shuffles them into 2 teams of 2.
+        3. Avoids repeating the exact same 4-player matchup.
+        4. Assigns them to the target open court (or all open courts if target_court is None).
+        5. Updates their status to 'playing'.
         """
         session = self.open_play_sessions.get(session_id)
         if not session or session.status != "active":
@@ -659,10 +650,17 @@ class MockDatabase:
         # Find currently occupied courts
         occupied_courts = {g.court_number for g in games if g.status == "in_progress"}
 
-        # Find available court numbers (1 to court_count)
-        available_courts = [c for c in range(1, session.court_count + 1) if c not in occupied_courts]
+        # Find available court numbers
+        if target_court is not None:
+            target_court = int(target_court)
+            if target_court in occupied_courts or target_court < 1 or target_court > session.court_count:
+                return []
+            available_courts = [target_court]
+        else:
+            available_courts = [c for c in range(1, session.court_count + 1) if c not in occupied_courts]
+
         if not available_courts:
-            return []  # All courts busy!
+            return []  # No courts available!
 
         # Filter confirmed players ('paid') who are currently 'waiting'
         confirmed_waiting = [
@@ -678,7 +676,6 @@ class MockDatabase:
             confirmed_waiting.sort(key=lambda p: (p.games_played, p.joined_at))
 
             # Select 4 candidate players
-            # Check combination repeat history
             chosen_4 = self._select_fair_four_players(confirmed_waiting, session_id)
             if len(chosen_4) < 4:
                 break
@@ -687,7 +684,7 @@ class MockDatabase:
             for p in chosen_4:
                 confirmed_waiting.remove(p)
 
-            # Step 2: DUPR-style ELO Balancing into 2 teams of 2
+            # Split into 2 teams of 2
             team_a, team_b = self._balance_teams_by_elo(chosen_4)
 
             # Assign next open court
@@ -703,8 +700,11 @@ class MockDatabase:
                 self.past_combinations[session_id] = set()
             self.past_combinations[session_id].add(group_key)
 
-            # Create Game Instance
-            game_id = f"GAME-{701 + len(games)}"
+            existing_gids = {g.id for s_games in self.session_games.values() for g in s_games}
+            counter = 701
+            while f"GAME-{counter}" in existing_gids:
+                counter += 1
+            game_id = f"GAME-{counter}"
             game = Game(
                 id=game_id,
                 session_id=session_id,
@@ -751,10 +751,7 @@ class MockDatabase:
         return primary
 
     def _balance_teams_by_elo(self, four_players):
-        """
-        Option A: Random Social Shuffling.
-        Job: Takes 4 players, shuffles them randomly, and splits them into 2 teams of 2.
-        """
+        """Shuffles 4 players randomly into Team A (2 players) and Team B (2 players)."""
         import random
         shuffled = list(four_players)
         random.shuffle(shuffled)
@@ -762,12 +759,11 @@ class MockDatabase:
         team_b = [shuffled[2], shuffled[3]]
         return team_a, team_b
 
-    def finish_game(self, game_id, score_a=11, score_b=9):
+    def finish_game(self, game_id, score_a=11, score_b=9, auto_rotate=True):
         """
-        Feature #4: Finish Game & Rotate Queue.
-        Job: Manual admin action to complete a court game.
-        Increments games_played by 1 for each player, returns them to waiting status,
-        and automatically triggers run_rotation_engine to seat next waiting players!
+        Marks a game as completed and records the final score.
+        Increments games_played (+1) for each player and returns them to the waiting pool.
+        If auto_rotate is True, automatically seats the next match on the freed court.
         """
         target_game = None
         target_session_id = None
@@ -799,12 +795,15 @@ class MockDatabase:
 
         self.add_audit_log(f"Game {game_id} (Court #{target_game.court_number}) finished (Score: {score_a}-{score_b}). Players returned to rotation queue.")
 
-        # AUTOMATIC NEXT ROTATION: Pull next 4 players onto freed court!
-        new_games = self.run_rotation_engine(target_session_id)
+        new_games = []
+        if auto_rotate:
+            new_games = self.run_rotation_engine(target_session_id, target_court=target_game.court_number)
 
         msg = f"Game marked finished ({score_a}-{score_b})."
         if new_games:
             msg += f" Auto-rotation seated new match on Court #{new_games[0].court_number}!"
+        elif not auto_rotate:
+            msg += f" Court #{target_game.court_number} is now open."
 
         return True, msg, new_games
 

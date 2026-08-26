@@ -8,7 +8,13 @@ from flask import Flask, render_template
 try:
     from flask_login import LoginManager
 except ImportError:
-    LoginManager = None
+    class DummyLoginManager:
+        login_view = ''
+        login_message = ''
+        login_message_category = ''
+        def init_app(self, app): pass
+        def user_loader(self, f): return f
+    LoginManager = DummyLoginManager
 from backend.config import Config
 from backend.models.mock_db import db
 

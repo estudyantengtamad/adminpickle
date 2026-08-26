@@ -85,10 +85,11 @@
     <!-- Responsive Grid of Court Cards -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
       {% for court_num in range(1, session.court_count + 1) %}
-        {% set court_game = None %}
+        {% set ns = namespace(court_game=None) %}
         {% for g in active_games %}
-          {% if g.court_number|int == court_num|int %}{% set court_game = g %}{% endif %}
+          {% if g.court_number|int == court_num|int %}{% set ns.court_game = g %}{% endif %}
         {% endfor %}
+        {% set court_game = ns.court_game %}
 
         {% if court_game %}
         <!-- Active Court Card -->
@@ -120,11 +121,11 @@
               <span class="text-xs font-black text-indigo-400 uppercase tracking-widest block border-b border-indigo-500/20 pb-1">TEAM A</span>
               <div class="space-y-2">
                 {% for player in court_game.team_a %}
-                {% set pname = player.player_name if hasattr(player, 'player_name') else player['player_name'] %}
-                {% set elo = player.elo if hasattr(player, 'elo') else player.get('elo', 1500) %}
-                <div class="bg-slate-800/80 rounded-xl p-2.5 flex items-center justify-between">
-                  <span class="text-xs sm:text-sm font-extrabold text-white truncate max-w-[120px]">{{ pname }}</span>
-                  <span class="text-xs font-mono font-bold text-indigo-300 bg-indigo-950/80 px-2 py-0.5 rounded border border-indigo-800">
+                {% set pname = player.player_name if player.player_name is defined else player['player_name'] %}
+                {% set elo = player.elo if player.elo is defined else player.get('elo', 1500) %}
+                <div class="bg-slate-800/80 rounded-xl p-2.5 flex items-center justify-between gap-2">
+                  <span class="text-xs sm:text-sm font-extrabold text-white leading-tight font-sans">{{ pname }}</span>
+                  <span class="text-xs font-mono font-bold text-indigo-300 bg-indigo-950/80 px-2 py-0.5 rounded border border-indigo-800 shrink-0">
                     Skill: {{ elo }}
                   </span>
                 </div>
@@ -145,11 +146,11 @@
               <span class="text-xs font-black text-purple-400 uppercase tracking-widest block border-b border-purple-500/20 pb-1">TEAM B</span>
               <div class="space-y-2">
                 {% for player in court_game.team_b %}
-                {% set pname = player.player_name if hasattr(player, 'player_name') else player['player_name'] %}
-                {% set elo = player.elo if hasattr(player, 'elo') else player.get('elo', 1500) %}
-                <div class="bg-slate-800/80 rounded-xl p-2.5 flex items-center justify-between">
-                  <span class="text-xs sm:text-sm font-extrabold text-white truncate max-w-[120px]">{{ pname }}</span>
-                  <span class="text-xs font-mono font-bold text-purple-300 bg-purple-950/80 px-2 py-0.5 rounded border border-purple-800">
+                {% set pname = player.player_name if player.player_name is defined else player['player_name'] %}
+                {% set elo = player.elo if player.elo is defined else player.get('elo', 1500) %}
+                <div class="bg-slate-800/80 rounded-xl p-2.5 flex items-center justify-between gap-2">
+                  <span class="text-xs sm:text-sm font-extrabold text-white leading-tight font-sans">{{ pname }}</span>
+                  <span class="text-xs font-mono font-bold text-purple-300 bg-purple-950/80 px-2 py-0.5 rounded border border-purple-800 shrink-0">
                     Skill: {{ elo }}
                   </span>
                 </div>
@@ -175,10 +176,16 @@
               </div>
             </div>
 
-            <button onclick="finishGamePrompt('{{ court_game.id }}')" 
-                    class="w-full sm:w-auto bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black px-6 py-3 rounded-2xl text-xs shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center space-x-1.5">
-              <span>Finish Match & Next Players 🚀</span>
-            </button>
+            <div class="flex items-center space-x-2 w-full sm:w-auto">
+              <button onclick="finishGamePrompt('{{ court_game.id }}', false)" 
+                      class="w-1/2 sm:w-auto bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold px-4 py-3 rounded-2xl text-xs border border-slate-700 transition-all flex items-center justify-center space-x-1">
+                <span>Finish Only 🏁</span>
+              </button>
+              <button onclick="finishGamePrompt('{{ court_game.id }}', true)" 
+                      class="w-1/2 sm:w-auto bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black px-5 py-3 rounded-2xl text-xs shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center space-x-1">
+                <span>Finish & Auto-Seat 🚀</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -192,7 +199,7 @@
             <h4 class="text-base font-black text-slate-800">Court {{ court_num }} is Open</h4>
             <p class="text-xs sm:text-sm text-slate-400 mt-1 font-sans">Waiting for next players in rotation lineup</p>
           </div>
-          <button onclick="triggerRotationSweep()" 
+          <button data-court="{{ court_num }}" onclick="triggerRotationSweep(this.getAttribute('data-court'))" 
                   class="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-5 py-2.5 rounded-xl text-xs transition-all shadow-md shadow-indigo-200">
             Send Next Players
           </button>
@@ -387,6 +394,132 @@
     </div>
 
   </div>
+
+  <!-- MATCH HISTORY & RECORDED SCORES TRAIL -->
+  <div class="bg-white border border-slate-200/80 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+      <div>
+        <h3 class="text-xl sm:text-2xl font-black text-slate-900 flex items-center space-x-3">
+          <span>🏆 Match History & Scores</span>
+          <span class="text-xs sm:text-sm font-black bg-indigo-100 text-indigo-800 px-3.5 py-1 rounded-full shadow-xs">
+            {{ completed_games|length }} Matches Completed
+          </span>
+        </h3>
+        <p class="text-xs sm:text-sm text-slate-500 font-medium font-sans mt-1">
+          Complete match records, winner highlights, and final scores for this session.
+        </p>
+      </div>
+    </div>
+
+    {% if completed_games %}
+    <div class="space-y-6">
+      {% for game in completed_games %}
+      {% set team_a_won = game.team_a_score > game.team_b_score %}
+      {% set team_b_won = game.team_b_score > game.team_a_score %}
+      
+      <!-- Gamified Scoreboard Card -->
+      <div class="bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 text-white rounded-3xl p-5 sm:p-7 shadow-xl border border-indigo-500/30 relative overflow-hidden space-y-5">
+        
+        <!-- Card Header (Court, Match ID, Finished Time) -->
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
+          <div class="flex items-center space-x-3">
+            <span class="px-3.5 py-1.5 rounded-xl bg-indigo-600 text-white font-black text-sm shadow-md">
+              Court {{ game.court_number }}
+            </span>
+            <span class="text-sm font-mono font-bold text-indigo-300">Match #{{ game.id }}</span>
+          </div>
+
+          <div class="flex items-center space-x-2 text-xs sm:text-sm font-extrabold text-slate-300 bg-slate-800/80 px-3.5 py-1.5 rounded-xl border border-slate-700">
+            <span>⏰ Finished at {{ game.ended_at.strftime('%I:%M %p') if game.ended_at else 'Just now' }}</span>
+          </div>
+        </div>
+
+        <!-- 2v2 Teams & Scoreboard Clash -->
+        <div class="grid grid-cols-1 md:grid-cols-7 items-center gap-4 text-center">
+          
+          <!-- TEAM A BOX -->
+          <div class="md:col-span-3 rounded-2xl p-4 transition-all relative
+            {% if team_a_won %} bg-emerald-950/80 border-2 border-emerald-400 shadow-lg shadow-emerald-900/30
+            {% else %} bg-slate-900/80 border border-slate-800 opacity-90 {% endif %}">
+            
+            <div class="flex items-center justify-between border-b border-white/10 pb-2 mb-3">
+              <span class="text-xs font-black uppercase tracking-widest text-indigo-400">TEAM A</span>
+              {% if team_a_won %}
+                <span class="bg-gradient-to-r from-amber-400 to-emerald-400 text-slate-950 text-xs font-black px-3 py-1 rounded-full shadow-md flex items-center space-x-1">
+                  <span>🏆 WINNERS</span>
+                </span>
+              {% endif %}
+            </div>
+
+            <div class="space-y-2">
+              {% for player in game.team_a %}
+              {% set pname = player.player_name if player.player_name is defined else player['player_name'] %}
+              <div class="bg-slate-800/90 rounded-xl p-3 flex items-center space-x-3 text-left">
+                <span class="w-8 h-8 rounded-lg bg-indigo-600/80 text-white font-black text-xs flex items-center justify-center shrink-0">
+                  {{ pname[0] }}
+                </span>
+                <span class="text-base sm:text-lg font-black text-white leading-tight font-sans tracking-wide">{{ pname }}</span>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <!-- SCORE CENTER DISPLAY -->
+          <div class="md:col-span-1 flex flex-col items-center justify-center space-y-2 py-2">
+            <span class="text-xs font-black text-slate-400 uppercase tracking-widest">FINAL SCORE</span>
+            
+            <div class="bg-slate-950 border-2 border-indigo-500/40 rounded-2xl px-5 py-3 shadow-2xl flex items-center space-x-3 font-mono">
+              <span class="text-2xl sm:text-3xl font-black {% if team_a_won %}text-emerald-400 animate-pulse{% else %}text-slate-400{% endif %}">
+                {{ game.team_a_score }}
+              </span>
+              <span class="text-xl font-black text-slate-600">:</span>
+              <span class="text-2xl sm:text-3xl font-black {% if team_b_won %}text-emerald-400 animate-pulse{% else %}text-slate-400{% endif %}">
+                {{ game.team_b_score }}
+              </span>
+            </div>
+
+            <span class="text-[11px] font-bold text-slate-400 font-sans">2v2 Match</span>
+          </div>
+
+          <!-- TEAM B BOX -->
+          <div class="md:col-span-3 rounded-2xl p-4 transition-all relative
+            {% if team_b_won %} bg-emerald-950/80 border-2 border-emerald-400 shadow-lg shadow-emerald-900/30
+            {% else %} bg-slate-900/80 border border-slate-800 opacity-90 {% endif %}">
+            
+            <div class="flex items-center justify-between border-b border-white/10 pb-2 mb-3">
+              <span class="text-xs font-black uppercase tracking-widest text-purple-400">TEAM B</span>
+              {% if team_b_won %}
+                <span class="bg-gradient-to-r from-amber-400 to-emerald-400 text-slate-950 text-xs font-black px-3 py-1 rounded-full shadow-md flex items-center space-x-1">
+                  <span>🏆 WINNERS</span>
+                </span>
+              {% endif %}
+            </div>
+
+            <div class="space-y-2">
+              {% for player in game.team_b %}
+              {% set pname = player.player_name if player.player_name is defined else player['player_name'] %}
+              <div class="bg-slate-800/90 rounded-xl p-3 flex items-center space-x-3 text-left">
+                <span class="w-8 h-8 rounded-lg bg-purple-600/80 text-white font-black text-xs flex items-center justify-center shrink-0">
+                  {{ pname[0] }}
+                </span>
+                <span class="text-base sm:text-lg font-black text-white leading-tight font-sans tracking-wide">{{ pname }}</span>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-12 text-slate-400 space-y-3">
+      <span class="text-4xl">🎾</span>
+      <p class="text-sm font-sans font-bold text-slate-600">No completed matches recorded for this session yet.</p>
+      <p class="text-xs text-slate-400 font-sans">Once a match finishes on court, the score ticket will appear here automatically.</p>
+    </div>
+    {% endif %}
+  </div>
 </div>
 
 <!-- MODAL #1: REGISTER PLAYER TO THIS SESSION -->
@@ -519,10 +652,12 @@ async function changeSessionStatus(newStatus) {
   }
 }
 
-async function triggerRotationSweep() {
+async function triggerRotationSweep(courtNum = null) {
   try {
     const res = await fetch('/open-play/sessions/{{ session.id }}/trigger_rotation', {
-      method: 'POST'
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ court_number: courtNum })
     });
     const data = await res.json();
     if (data.success) {
@@ -552,7 +687,7 @@ async function confirmPayment(participantId) {
   }
 }
 
-async function finishGamePrompt(gameId) {
+async function finishGamePrompt(gameId, autoRotate = true) {
   const scoreA = document.getElementById(`scoreA_${gameId}`)?.value || 11;
   const scoreB = document.getElementById(`scoreB_${gameId}`)?.value || 9;
 
@@ -560,11 +695,16 @@ async function finishGamePrompt(gameId) {
     const res = await fetch(`/open-play/games/${gameId}/finish`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ score_a: scoreA, score_b: scoreB })
+      body: JSON.stringify({ score_a: scoreA, score_b: scoreB, auto_rotate: autoRotate })
     });
     const data = await res.json();
     if (data.success) {
-      showRotationSuccessModal(data.message, data.new_games);
+      if (autoRotate && data.new_games && data.new_games.length > 0) {
+        showRotationSuccessModal(data.message, data.new_games);
+      } else {
+        showToast(data.message, 'success');
+        setTimeout(() => location.reload(), 600);
+      }
     } else {
       showToast(data.message, 'danger');
     }
@@ -654,13 +794,13 @@ function showRotationSuccessModal(message, newGames) {
           <div class="grid grid-cols-2 gap-4 text-xs font-bold text-slate-700">
             <div class="bg-indigo-50/50 border border-indigo-100 p-2 rounded-xl text-center space-y-1">
               <span class="text-[9px] uppercase tracking-wider text-indigo-600 font-extrabold block">TEAM A</span>
-              <span class="block truncate">${game.team_a[0]}</span>
-              <span class="block truncate">${game.team_a[1]}</span>
+              <span class="block leading-tight">${game.team_a[0]}</span>
+              <span class="block leading-tight">${game.team_a[1]}</span>
             </div>
             <div class="bg-purple-50/50 border border-purple-100 p-2 rounded-xl text-center space-y-1">
               <span class="text-[9px] uppercase tracking-wider text-purple-600 font-extrabold block">TEAM B</span>
-              <span class="block truncate">${game.team_b[0]}</span>
-              <span class="block truncate">${game.team_b[1]}</span>
+              <span class="block leading-tight">${game.team_b[0]}</span>
+              <span class="block leading-tight">${game.team_b[1]}</span>
             </div>
           </div>
         </div>
