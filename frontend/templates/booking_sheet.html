@@ -1,0 +1,348 @@
+{% extends "base.html" %}
+
+{% block title %}Digital Booking Sheet{% endblock %}
+{% block header_title %}Digital Booking Sheet{% endblock %}
+
+{% block content %}
+<div class="space-y-6 px-2 sm:px-6">
+  <!-- Clean & Minimal Header Bar -->
+  <div class="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-md shadow-slate-200/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div>
+      <h2 class="text-xl font-bold text-slate-900 tracking-tight">Court Schedule Matrix</h2>
+      <p class="text-xs text-slate-500 font-medium">Whole-day booking sheet for all courts. Click any available cell to book, or click a booked cell to edit.</p>
+    </div>
+
+    <!-- Date Picker & Quick Buttons -->
+    <div class="flex items-center space-x-3">
+      <div class="text-left">
+        <input type="date" id="bookingDate" value="{{ selected_date }}" onchange="onDateChange()"
+               class="bg-slate-50 border border-slate-300 text-slate-900 text-xs font-bold rounded-xl px-3.5 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 shadow-xs">
+      </div>
+      <button onclick="setQuickDate(0)" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs">Today</button>
+      <button onclick="setQuickDate(1)" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all">Tomorrow</button>
+    </div>
+  </div>
+
+  <!-- Legend Bar -->
+  <div class="flex items-center justify-between px-2">
+    <div class="flex items-center space-x-6 text-xs font-medium text-slate-600">
+      <div class="flex items-center space-x-2">
+        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>
+        <span>Available</span>
+      </div>
+      <div class="flex items-center space-x-2">
+        <span class="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"></span>
+        <span>Booked</span>
+      </div>
+      <div class="flex items-center space-x-2">
+        <span class="w-2.5 h-2.5 rounded-full bg-purple-500 inline-block"></span>
+        <span>Open Play</span>
+      </div>
+    </div>
+
+    <span id="displayDateTitle" class="text-xs font-mono font-bold text-slate-500">
+      Schedule for {{ selected_date }}
+    </span>
+  </div>
+
+  <!-- Court Schedule Matrix Table Container with Back Shadow -->
+  <div class="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-xl shadow-slate-300/40 overflow-x-auto">
+    <table class="w-full text-left border-collapse min-w-[760px]">
+      <thead>
+        <tr class="border-b border-slate-200 text-slate-400 text-xs font-bold uppercase tracking-wider">
+          <th class="py-3 px-4 w-32 bg-slate-50/70 sticky left-0 z-10">Time Slot</th>
+          {% for court in courts %}
+          <th class="py-3 px-3 text-center min-w-[130px]">{{ court }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody id="matrixTbody" class="divide-y divide-slate-100 text-xs">
+        {% for time in time_slots %}
+        <tr class="hover:bg-slate-50/50 transition-colors">
+          <td class="py-3.5 px-4 font-mono font-bold text-slate-700 bg-slate-50/70 sticky left-0 z-10">
+            {{ time }}
+          </td>
+          {% for court in courts %}
+            {% set cell = matrix[time][court] %}
+            {% set is_vacant = cell.status == 'vacant' %}
+            {% set is_booked = cell.status == 'booked' %}
+            {% set is_open_play = cell.status == 'open_play' %}
+
+            <td class="p-2">
+              {% if is_vacant %}
+                <div onclick="openBookingModal('{{ time }}', '{{ court }}', 'vacant')"
+                     class="p-2.5 rounded-xl text-center cursor-pointer transition-all duration-150 bg-emerald-100 hover:bg-emerald-200/90 border border-emerald-300 text-emerald-900 font-extrabold shadow-xs hover:shadow-md">
+                  <span class="text-xs font-bold block">Available</span>
+                </div>
+              {% elif is_booked %}
+                <div onclick="openBookingModal('{{ time }}', '{{ court }}', 'booked', '{{ cell.customer_name }}', '{{ cell.payment_status }}')"
+                     class="p-2.5 rounded-xl text-center cursor-pointer transition-all duration-150 bg-rose-100 hover:bg-rose-200/90 border border-rose-250 text-rose-950 space-y-0.5 shadow-xs hover:shadow-md">
+                  <span class="text-[10px] font-bold uppercase tracking-wider text-rose-700 block leading-tight">Booked</span>
+                  <span class="text-xs font-bold text-rose-950 block leading-snug truncate">{{ cell.customer_name }}</span>
+                  <span class="text-[10px] font-extrabold block leading-tight {% if cell.payment_status == 'paid' %}text-emerald-700{% else %}text-amber-700{% endif %}">
+                    {% if cell.payment_status == 'paid' %}Paid{% else %}Unpaid{% endif %}
+                  </span>
+                </div>
+              {% else %}
+                <div onclick="showOpenPlayAlert('{{ cell.title }}', '{{ cell.time_range }}')"
+                     class="p-2.5 rounded-xl text-center cursor-not-allowed bg-purple-100 border border-purple-200/80 text-purple-900 opacity-90 space-y-0.5 shadow-xs">
+                  <span class="text-[10px] font-bold uppercase tracking-wider text-purple-700 block leading-tight">Open Play</span>
+                  <span class="text-xs font-bold text-purple-950 block leading-snug truncate">{{ cell.title }}</span>
+                </div>
+              {% endif %}
+            </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- DIRECT BOOKING POPUP MODAL -->
+<div id="bookingModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border border-slate-200 space-y-4">
+    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+      <div>
+        <h3 class="text-base font-bold text-slate-900" id="modalTitle">Book Court Slot</h3>
+        <p class="text-xs text-slate-500" id="modalSubtitle">Court & Time information</p>
+      </div>
+      <button onclick="closeBookingModal()" class="text-slate-400 hover:text-slate-700 text-xl font-bold">&times;</button>
+    </div>
+
+    <form id="bookingForm" onsubmit="submitBooking(event)" class="space-y-4">
+      <input type="hidden" id="modalTimeSlot">
+      <input type="hidden" id="modalCourt">
+      <input type="hidden" id="modalMode" value="create">
+
+      <div>
+        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Customer Name</label>
+        <input type="text" id="modalCustomerName" required placeholder="e.g. Juan Dela Cruz"
+               class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/30">
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Payment Status</label>
+        <div class="grid grid-cols-2 gap-3">
+          <button type="button" id="btnStatusPaid" onclick="setPaymentStatusChoice('paid')"
+                  class="py-2.5 px-4 rounded-xl text-xs font-bold border transition-all flex items-center justify-center space-x-1.5 bg-emerald-600 text-white border-emerald-600">
+            <span>Paid</span>
+          </button>
+          <button type="button" id="btnStatusUnpaid" onclick="setPaymentStatusChoice('unpaid')"
+                  class="py-2.5 px-4 rounded-xl text-xs font-bold border transition-all flex items-center justify-center space-x-1.5 bg-slate-100 text-slate-700 border-slate-200">
+            <span>Unpaid</span>
+          </button>
+        </div>
+        <input type="hidden" id="modalPaymentStatus" value="paid">
+      </div>
+
+      <div class="flex items-center justify-between pt-3 border-t border-slate-100 gap-2">
+        <button type="button" id="btnClearBooking" onclick="clearCurrentBooking()"
+                class="hidden px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition-all">
+          Clear Booking
+        </button>
+
+        <div class="flex items-center space-x-2 ml-auto">
+          <button type="button" onclick="closeBookingModal()" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold">
+            Cancel
+          </button>
+          <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs">
+            Save
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentDate = "{{ selected_date }}";
+
+function onDateChange() {
+  currentDate = document.getElementById('bookingDate').value;
+  document.getElementById('displayDateTitle').innerText = 'Schedule for ' + currentDate;
+  loadMatrixData();
+}
+
+function setQuickDate(daysOffset) {
+  const d = new Date();
+  d.setDate(d.getDate() + daysOffset);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const dateStr = `${yyyy}-${mm}-${dd}`;
+  document.getElementById('bookingDate').value = dateStr;
+  onDateChange();
+}
+
+async function loadMatrixData() {
+  try {
+    const res = await fetch(`/api/booking-sheet/matrix?date=${currentDate}`);
+    const data = await res.json();
+    if (data.success) {
+      renderMatrix(data.time_slots, data.courts, data.matrix);
+    }
+  } catch (err) {
+    console.error('Failed to load schedule matrix', err);
+  }
+}
+
+function renderMatrix(timeSlots, courts, matrix) {
+  const tbody = document.getElementById('matrixTbody');
+  if (!tbody) return;
+
+  tbody.innerHTML = '';
+
+  timeSlots.forEach(time => {
+    let trHtml = `<tr class="hover:bg-slate-50/50 transition-colors">
+      <td class="py-3.5 px-4 font-mono font-bold text-slate-700 bg-slate-50/70 sticky left-0 z-10">${time}</td>`;
+
+    courts.forEach(court => {
+      const cell = matrix[time][court];
+      const isVacant = cell.status === 'vacant';
+      const isBooked = cell.status === 'booked';
+      const isOpenPlay = cell.status === 'open_play';
+
+      let cellHtml = '';
+      if (isVacant) {
+        cellHtml = `<div onclick="openBookingModal('${time}', '${court}', 'vacant')"
+             class="p-2.5 rounded-xl text-center cursor-pointer transition-all duration-150 bg-emerald-100 hover:bg-emerald-200/90 border border-emerald-300 text-emerald-900 font-extrabold shadow-xs hover:shadow-md">
+          <span class="text-xs font-bold block">Available</span>
+        </div>`;
+      } else if (isBooked) {
+        const nameEscaped = cell.customer_name.replace(/'/g, "\\'");
+        const payTagClass = cell.payment_status === 'paid' ? 'text-emerald-700' : 'text-amber-700';
+        const payTagText = cell.payment_status === 'paid' ? 'Paid' : 'Unpaid';
+
+        cellHtml = `<div onclick="openBookingModal('${time}', '${court}', 'booked', '${nameEscaped}', '${cell.payment_status}')"
+             class="p-2.5 rounded-xl text-center cursor-pointer transition-all duration-150 bg-rose-100 hover:bg-rose-200/90 border border-rose-250 text-rose-950 space-y-0.5 shadow-xs hover:shadow-md">
+          <span class="text-[10px] font-bold uppercase tracking-wider text-rose-700 block leading-tight">Booked</span>
+          <span class="text-xs font-bold text-rose-950 block leading-snug truncate">${cell.customer_name}</span>
+          <span class="text-[10px] font-extrabold block leading-tight ${payTagClass}">${payTagText}</span>
+        </div>`;
+      } else {
+        const titleEscaped = cell.title.replace(/'/g, "\\'");
+        cellHtml = `<div onclick="showOpenPlayAlert('${titleEscaped}', '${cell.time_range}')"
+             class="p-2.5 rounded-xl text-center cursor-not-allowed bg-purple-100 border border-purple-200/80 text-purple-900 opacity-90 space-y-0.5 shadow-xs">
+          <span class="text-[10px] font-bold uppercase tracking-wider text-purple-700 block leading-tight">Open Play</span>
+          <span class="text-xs font-bold text-purple-950 block leading-snug truncate">${cell.title}</span>
+        </div>`;
+      }
+
+      trHtml += `<td class="p-2">${cellHtml}</td>`;
+    });
+
+    trHtml += `</tr>`;
+    tbody.innerHTML += trHtml;
+  });
+}
+
+function openBookingModal(timeSlot, court, mode, name = '', paymentStatus = 'paid') {
+  document.getElementById('modalTimeSlot').value = timeSlot;
+  document.getElementById('modalCourt').value = court;
+  document.getElementById('modalMode').value = mode;
+  document.getElementById('modalCustomerName').value = name;
+  setPaymentStatusChoice(paymentStatus);
+
+  const titleEl = document.getElementById('modalTitle');
+  const subEl = document.getElementById('modalSubtitle');
+  const clearBtn = document.getElementById('btnClearBooking');
+
+  if (mode === 'booked') {
+    titleEl.innerText = `Edit Booking — ${court}`;
+    subEl.innerText = `Time Slot: ${timeSlot} on ${currentDate}`;
+    clearBtn.classList.remove('hidden');
+  } else {
+    titleEl.innerText = `Book ${court}`;
+    subEl.innerText = `Time Slot: ${timeSlot} on ${currentDate}`;
+    clearBtn.classList.add('hidden');
+  }
+
+  document.getElementById('bookingModal').classList.remove('hidden');
+}
+
+function closeBookingModal() {
+  document.getElementById('bookingModal').classList.add('hidden');
+}
+
+function setPaymentStatusChoice(status) {
+  document.getElementById('modalPaymentStatus').value = status;
+  const btnPaid = document.getElementById('btnStatusPaid');
+  const btnUnpaid = document.getElementById('btnStatusUnpaid');
+
+  if (status === 'paid') {
+    btnPaid.className = 'py-2.5 px-4 rounded-xl text-xs font-bold border transition-all flex items-center justify-center space-x-1.5 bg-emerald-600 text-white border-emerald-600';
+    btnUnpaid.className = 'py-2.5 px-4 rounded-xl text-xs font-bold border transition-all flex items-center justify-center space-x-1.5 bg-slate-100 text-slate-700 border-slate-200';
+  } else {
+    btnPaid.className = 'py-2.5 px-4 rounded-xl text-xs font-bold border transition-all flex items-center justify-center space-x-1.5 bg-slate-100 text-slate-700 border-slate-200';
+    btnUnpaid.className = 'py-2.5 px-4 rounded-xl text-xs font-bold border transition-all flex items-center justify-center space-x-1.5 bg-amber-500 text-white border-amber-500';
+  }
+}
+
+async function submitBooking(e) {
+  e.preventDefault();
+  const timeSlot = document.getElementById('modalTimeSlot').value;
+  const court = document.getElementById('modalCourt').value;
+  const customerName = document.getElementById('modalCustomerName').value;
+  const paymentStatus = document.getElementById('modalPaymentStatus').value;
+
+  try {
+    const res = await fetch('/api/booking-sheet/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        date: currentDate,
+        court: court,
+        time_slot: timeSlot,
+        customer_name: customerName,
+        payment_status: paymentStatus
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message, 'success');
+      closeBookingModal();
+      loadMatrixData();
+    } else {
+      showToast(data.message, 'danger');
+    }
+  } catch (err) {
+    showToast('Failed to save booking.', 'danger');
+  }
+}
+
+async function clearCurrentBooking() {
+  const timeSlot = document.getElementById('modalTimeSlot').value;
+  const court = document.getElementById('modalCourt').value;
+  if (!confirm(`Cancel and clear booking for ${court} at ${timeSlot}?`)) return;
+
+  try {
+    const res = await fetch('/api/booking-sheet/clear', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        date: currentDate,
+        court: court,
+        time_slot: timeSlot
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message, 'success');
+      closeBookingModal();
+      loadMatrixData();
+    } else {
+      showToast(data.message, 'danger');
+    }
+  } catch (err) {
+    showToast('Failed to clear booking.', 'danger');
+  }
+}
+
+function showOpenPlayAlert(title, range) {
+  showToast(`Locked: Slot is reserved for Open Play ('${title}', ${range}) and cannot be booked directly.`, 'info');
+}
+</script>
+{% endblock %}

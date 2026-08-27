@@ -183,6 +183,91 @@ class Game:
 
 
 # ==============================================================================
+# BOOKING SHEET CONSTANTS & HELPER UTILITIES
+# ==============================================================================
+
+BOOKING_TIME_SLOTS = [
+    "06:00 AM", "07:00 AM", "08:00 AM", "09:00 AM", "10:00 AM", "11:00 AM",
+    "12:00 PM", "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM", "05:00 PM",
+    "06:00 PM", "07:00 PM", "08:00 PM", "09:00 PM", "10:00 PM", "11:00 PM", "12:00 AM"
+]
+
+BOOKING_COURTS = ["Court 1", "Court 2", "Court 3", "Court 4", "Court 5", "Court 6"]
+
+
+def parse_time_to_minutes(time_str):
+    """Converts time strings like '08:00 AM', '1:30 PM', '12:00AM' to minutes from midnight."""
+    if not time_str:
+        return 0
+    t_str = time_str.strip().upper()
+    # Normalize formats like "12:00AM" -> "12:00 AM"
+    if t_str.endswith("AM") and not t_str.endswith(" AM"):
+        t_str = t_str[:-2] + " AM"
+    elif t_str.endswith("PM") and not t_str.endswith(" PM"):
+        t_str = t_str[:-2] + " PM"
+
+    try:
+        dt = datetime.strptime(t_str, "%I:%M %p")
+        return dt.hour * 60 + dt.minute
+    except ValueError:
+        try:
+            dt = datetime.strptime(t_str, "%H:%M")
+            return dt.hour * 60 + dt.minute
+        except ValueError:
+            return 0
+
+
+def parse_court_number(court_val, default=1):
+    """Safely extracts integer court number from 'Court 1', '1', or int 1."""
+    if isinstance(court_val, int):
+        return court_val
+    if isinstance(court_val, str):
+        if court_val.isdigit():
+            return int(court_val)
+        if "Court" in court_val:
+            try:
+                return int(court_val.replace("Court", "").strip())
+            except ValueError:
+                pass
+    return default
+
+
+
+class DirectBooking:
+    """
+    DirectBooking Entity
+    Job: Stores admin-created direct court reservations on the Digital Booking Sheet.
+    Fields:
+      - id: Unique booking ID (e.g. 'BK-1001')
+      - date: Date string 'YYYY-MM-DD'
+      - court: Court identifier string 'Court 1'
+      - time_slot: Time slot string '08:00 AM'
+      - customer_name: Player/Customer name
+      - payment_status: 'paid' or 'unpaid'
+      - created_at: Datetime created
+    """
+    def __init__(self, id, date, court, time_slot, customer_name, payment_status="paid", created_at=None):
+        self.id = id
+        self.date = date
+        self.court = court
+        self.time_slot = time_slot
+        self.customer_name = customer_name
+        self.payment_status = payment_status.lower()  # 'paid' or 'unpaid'
+        self.created_at = created_at or datetime.now()
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "date": self.date,
+            "court": self.court,
+            "time_slot": self.time_slot,
+            "customer_name": self.customer_name,
+            "payment_status": self.payment_status,
+            "created_at": self.created_at.strftime("%Y-%m-%d %H:%M:%S")
+        }
+
+
+# ==============================================================================
 # 3. MAIN MOCK DATABASE STORE & BUSINESS LOGIC ENGINE
 # ==============================================================================
 
@@ -302,6 +387,10 @@ class MockDatabase:
 
         # Seed Sample Open Play Sessions
         self._seed_open_play_data()
+
+        # Digital Booking Sheet Data Store (date, court, time_slot) -> DirectBooking
+        self.direct_bookings = {}
+        self._seed_direct_bookings()
 
     # --------------------------------------------------------------------------
     # SEED DATA INITIALIZER
@@ -807,6 +896,178 @@ class MockDatabase:
 
         return True, msg, new_games
 
+    # ==========================================================================
+    # DIGITAL BOOKING SHEET METHODS & CONFLICT ENGINE
+    # ==========================================================================
+
+    def _seed_direct_bookings(self):
+        """Seeds sample direct court bookings for demonstration."""
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        seeds = [
+            (today_str, "Court 1", "09:00 AM", "Juan Dela Cruz", "paid"),
+            (today_str, "Court 1", "10:00 AM", "Maria Santos", "unpaid"),
+            (today_str, "Court 3", "02:00 PM", "Pedro Penduko", "paid"),
+            (today_str, "Court 2", "04:00 PM", "Ana Reyes", "unpaid"),
+        ]
+        booking_counter = 1001
+        for d, c, t, name, status in seeds:
+            b_id = f"BK-{booking_counter}"
+            self.direct_bookings[(d, c, t)] = DirectBooking(
+                id=b_id, date=d, court=c, time_slot=t, customer_name=name, payment_status=status
+            )
+            booking_counter += 1
+
+    def get_booking_sheet_matrix(self, date):
+        """
+        Returns full court matrix for ALL courts across all time slots for a specified date.
+        """
+        matrix = {}
+        for time_slot in BOOKING_TIME_SLOTS:
+            matrix[time_slot] = {}
+            slot_start = parse_time_to_minutes(time_slot)
+            slot_end = slot_start + 60
+
+            for court in BOOKING_COURTS:
+                court_num = parse_court_number(court)
+
+                # Check Open Play overlap
+                open_play_match = None
+                for s in self.open_play_sessions.values():
+                    if s.date == date and court_num <= s.court_count:
+                        s_start = parse_time_to_minutes(s.start_time)
+                        s_end = parse_time_to_minutes(s.end_time)
+                        if max(slot_start, s_start) < min(slot_end, s_end):
+                            open_play_match = s
+                            break
+
+                if open_play_match:
+                    matrix[time_slot][court] = {
+                        "status": "open_play",
+                        "title": open_play_match.title,
+                        "session_id": open_play_match.id,
+                        "time_range": f"{open_play_match.start_time} - {open_play_match.end_time}",
+                        "customer_name": None,
+                        "payment_status": None,
+                        "booking_id": None
+                    }
+                else:
+                    booking_key = (date, court, time_slot)
+                    if booking_key in self.direct_bookings:
+                        b = self.direct_bookings[booking_key]
+                        matrix[time_slot][court] = {
+                            "status": "booked",
+                            "customer_name": b.customer_name,
+                            "payment_status": b.payment_status,
+                            "booking_id": b.id,
+                            "title": None,
+                            "time_range": None
+                        }
+                    else:
+                        matrix[time_slot][court] = {
+                            "status": "vacant",
+                            "customer_name": None,
+                            "payment_status": None,
+                            "booking_id": None,
+                            "title": None,
+                            "time_range": None
+                        }
+
+        return {
+            "date": date,
+            "time_slots": BOOKING_TIME_SLOTS,
+            "courts": BOOKING_COURTS,
+            "matrix": matrix
+        }
+
+    def get_booking_sheet_grid(self, date, court):
+        """
+        Returns time-slot list for a single court on a given date.
+        Reuses get_booking_sheet_matrix for clean consistency.
+        """
+        sheet_matrix = self.get_booking_sheet_matrix(date)
+        grid = []
+        for time_slot in sheet_matrix["time_slots"]:
+            cell_info = sheet_matrix["matrix"][time_slot].get(court, {
+                "status": "vacant",
+                "customer_name": None,
+                "payment_status": None,
+                "booking_id": None,
+                "title": None,
+                "time_range": None
+            })
+            grid.append({
+                "time_slot": time_slot,
+                **cell_info
+            })
+        return grid
+
+    def save_direct_booking(self, date, court, time_slot, customer_name, payment_status="paid"):
+        """Saves or updates a direct court booking after verifying no Open Play overlap."""
+        if not customer_name or not customer_name.strip():
+            return False, "Customer / Player name is required."
+
+        court_num = parse_court_number(court)
+        slot_start = parse_time_to_minutes(time_slot)
+        slot_end = slot_start + 60
+
+        # Check Open Play conflict
+        for s in self.open_play_sessions.values():
+            if s.date == date and court_num <= s.court_count:
+                s_start = parse_time_to_minutes(s.start_time)
+                s_end = parse_time_to_minutes(s.end_time)
+                if max(slot_start, s_start) < min(slot_end, s_end):
+                    return False, f"Cannot book slot: Reserved for Open Play session '{s.title}' ({s.start_time} - {s.end_time})."
+
+        key = (date, court, time_slot)
+        clean_name = customer_name.strip()
+        clean_status = payment_status.lower()
+
+        if key in self.direct_bookings:
+            b = self.direct_bookings[key]
+            b.customer_name = clean_name
+            b.payment_status = clean_status
+            action = f"Updated direct booking for '{b.customer_name}' on {court} at {time_slot} ({b.payment_status.upper()})"
+        else:
+            b_id = f"BK-{len(self.direct_bookings) + 1001}"
+            b = DirectBooking(id=b_id, date=date, court=court, time_slot=time_slot, customer_name=clean_name, payment_status=clean_status)
+            self.direct_bookings[key] = b
+            action = f"Created direct booking for '{b.customer_name}' on {court} at {time_slot} ({b.payment_status.upper()})"
+
+        self.add_audit_log(action)
+        return True, f"Booking for '{clean_name}' on {court} at {time_slot} saved successfully!"
+
+    def clear_direct_booking(self, date, court, time_slot):
+        """Clears/cancels a direct booking for a specific slot."""
+        key = (date, court, time_slot)
+        if key in self.direct_bookings:
+            b = self.direct_bookings.pop(key)
+            self.add_audit_log(f"Cancelled direct booking for '{b.customer_name}' on {court} at {time_slot}")
+            return True, f"Booking for '{b.customer_name}' on {court} at {time_slot} cleared."
+        return False, "No active booking found for this slot."
+
+    def check_open_play_conflict(self, date, start_time, end_time, court_count):
+        """
+        Checks if creating a new Open Play session conflicts with any existing direct court bookings.
+        Returns a descriptive error message if conflict found, otherwise None.
+        """
+        sess_start = parse_time_to_minutes(start_time)
+        sess_end = parse_time_to_minutes(end_time)
+        target_court_count = int(court_count)
+
+        for (b_date, b_court, b_slot), b in self.direct_bookings.items():
+            if b_date == date:
+                c_num = parse_court_number(b_court)
+                if c_num <= target_court_count:
+                    slot_start = parse_time_to_minutes(b_slot)
+                    slot_end = slot_start + 60
+
+                    if max(sess_start, slot_start) < min(sess_end, slot_end):
+                        return f"{b_court} already has a direct booking at {b_slot} for '{b.customer_name}' ({b.payment_status.upper()}) on {date} — creating this Open Play session will overlap."
+
+        return None
+
+
 
 # Global singleton database instance
 db = MockDatabase()
+

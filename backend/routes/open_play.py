@@ -88,6 +88,14 @@ def create_session():
         flash("Date, Start Time, and End Time are required.", "danger")
         return redirect(url_for('open_play.open_play_view'))
 
+    # Check for direct booking conflicts on courts during this time range
+    conflict_msg = db.check_open_play_conflict(date, start_time, end_time, court_count)
+    if conflict_msg:
+        if request.is_json:
+            return json_fail(conflict_msg)
+        flash(conflict_msg, "danger")
+        return redirect(url_for('open_play.open_play_view'))
+
     session = db.create_open_play_session(
         title=title or f"Open Play - {date}",
         date=date,
