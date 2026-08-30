@@ -19,20 +19,42 @@ dashboard_bp = Blueprint('dashboard', __name__)
 @dashboard_bp.route('/')
 @login_required
 def index():
-    """Renders the main admin dashboard page with live metrics and system audit logs."""
-    return render_template('dashboard.html', metrics=db.metrics, logs=db.system_logs)
+    """Renders the main admin dashboard page with live metrics, recent events, and system audit logs."""
+    return render_template(
+        'dashboard.html',
+        metrics=db.metrics,
+        recent_events=db.get_event_posts()[:3],
+        total_courts=db.total_courts,
+        logs=db.system_logs
+    )
 
 
-@dashboard_bp.route('/api/action/manual_match', methods=['POST'])
+@dashboard_bp.route('/api/action/quick_announcement', methods=['POST'])
 @login_required
-def manual_match():
-    """Manually triggers court rotation sweep for all active Open Play sessions."""
-    active_sessions = [s for s in db.get_open_play_sessions() if s.status == 'active']
-    for s in active_sessions:
-        db.run_rotation_engine(s.id)
+def quick_announcement():
+    """Posts a quick announcement to player boards."""
+    data = request.get_json() or {}
+    title = data.get('title', '').strip()
+    desc = data.get('description', '').strip()
+    image_url = data.get('image_url', '').strip()
 
-    db.add_audit_log("Triggered Manual Open Play Rotation Sweep", current_user.name)
-    return jsonify({"success": True, "message": "Manual Open Play Rotation sweep executed across active sessions."})
+    if not title:
+        return jsonify({"success": False, "message": "Announcement title is required."}), 400
+
+    author_name = getattr(current_user, 'name', 'Karl Alegrado')
+    new_post = db.create_event_post(
+        title=title,
+        event_type="Announcement",
+        description=desc,
+        image_url=image_url,
+        author=author_name
+    )
+
+    return jsonify({
+        "success": True,
+        "event": new_post.to_dict(),
+        "message": f"Announcement '{title}' published to player board!"
+    })
 
 
 @dashboard_bp.route('/api/action/block_slot', methods=['POST'])

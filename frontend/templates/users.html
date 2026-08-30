@@ -23,8 +23,8 @@
         </div>
 
         <!-- Filter Selects -->
-        <div class="flex items-center space-x-3">
-          <select id="tierFilterSelect" onchange="filterPlayers()" class="bg-slate-50 border border-slate-200 text-xs text-slate-700 font-semibold rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
+        <div class="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:space-x-3">
+          <select id="tierFilterSelect" onchange="filterPlayers()" class="flex-1 sm:flex-initial bg-slate-50 border border-slate-200 text-xs text-slate-700 font-semibold rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
             <option value="ALL">Rank Tier: All</option>
             <option value="Diamond">Diamond</option>
             <option value="Platinum">Platinum</option>
@@ -33,7 +33,7 @@
             <option value="Bronze">Bronze</option>
           </select>
 
-          <select id="statusFilterSelect" onchange="filterPlayers()" class="bg-slate-50 border border-slate-200 text-xs text-slate-700 font-semibold rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
+          <select id="statusFilterSelect" onchange="filterPlayers()" class="flex-1 sm:flex-initial bg-slate-50 border border-slate-200 text-xs text-slate-700 font-semibold rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
             <option value="ALL">Status: All</option>
             <option value="Active">Active</option>
             <option value="Frozen">Frozen</option>
@@ -42,6 +42,7 @@
         </div>
       </div>
     </div>
+
 
     <!-- Player Table Card -->
     <div class="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm">

@@ -5,86 +5,66 @@
 
 {% block content %}
 <div class="space-y-8">
-  <!-- Top Card: RECIPE Framework Sliders Form -->
+  <!-- Top Card: Venue Court Manager (Non-techy friendly) -->
   <div class="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm">
     <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-100 pb-6 mb-6">
-      <div>
-        <h3 class="text-base font-bold text-slate-900">RECIPE Framework Reward Sliders</h3>
-        <p class="text-xs text-slate-500">Configure core platform game mechanics, reward algorithms, and dynamic incentives</p>
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+          </svg>
+        </div>
+        <div>
+          <h3 class="text-base font-bold text-slate-900">Venue Court Manager</h3>
+          <p class="text-xs text-slate-500">Configure total active courts available for bookings and player open play events</p>
+        </div>
       </div>
-      <button onclick="document.getElementById('recipeForm').dispatchEvent(new Event('submit'))" 
-              class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-5 rounded-xl text-xs shadow-lg shadow-indigo-200 transition-all flex items-center space-x-2">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-        </svg>
-        <span>Save All Settings</span>
-      </button>
+
+      <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>
+        Synced to Player Dashboard
+      </span>
     </div>
 
-    <form id="recipeForm" onsubmit="saveRecipeSettings(event)" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      <!-- 1. Recognition -->
-      <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200/60 space-y-3">
-        <div class="flex items-center justify-between">
-          <label class="text-xs font-bold text-slate-800">Recognition</label>
-          <span id="recDisp" class="text-xs font-black text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">{{ recipe.recognition }} PTS</span>
-        </div>
-        <input type="range" id="recVal" min="0" max="100" value="{{ recipe.recognition }}" oninput="document.getElementById('recDisp').innerText = this.value + ' PTS'" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
-        <p class="text-[11px] text-slate-400">Awards multiplier for profile badges & leaderboard highlights.</p>
+    <div class="bg-slate-50 border border-slate-200/70 rounded-2xl p-5 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-6">
+      <div class="space-y-1 text-center sm:text-left">
+        <p class="text-xs font-bold text-slate-800 uppercase tracking-wider">Total Available Courts</p>
+        <p class="text-xs text-slate-500 max-w-md">Whenever players host open play or view your club schedule, this total court count will be automatically displayed.</p>
       </div>
 
-      <!-- 2. Engagement -->
-      <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200/60 space-y-3">
-        <div class="flex items-center justify-between">
-          <label class="text-xs font-bold text-slate-800">Engagement</label>
-          <span id="engDisp" class="text-xs font-black text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">{{ recipe.engagement }} PTS</span>
+      <!-- Easy Non-Tech Stepper -->
+      <div class="flex items-center space-x-3">
+        <div class="flex items-center bg-white border border-slate-200 rounded-2xl p-1.5 shadow-sm">
+          <button type="button" 
+                  onclick="adjustCourtCount(-1)" 
+                  class="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-lg flex items-center justify-center transition-colors active:scale-95">
+            −
+          </button>
+          <div class="px-5 text-center min-w-[100px]">
+            <span id="courtCountDisplay" class="text-2xl font-black text-slate-900">{{ total_courts or 6 }}</span>
+            <span class="block text-[10px] uppercase font-bold text-slate-400">Courts</span>
+          </div>
+          <button type="button" 
+                  onclick="adjustCourtCount(1)" 
+                  class="w-10 h-10 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-black text-lg flex items-center justify-center transition-colors active:scale-95">
+            +
+          </button>
         </div>
-        <input type="range" id="engVal" min="0" max="100" value="{{ recipe.engagement }}" oninput="document.getElementById('engDisp').innerText = this.value + ' PTS'" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
-        <p class="text-[11px] text-slate-400">Point incentives for daily gameplay streaks & community activity.</p>
-      </div>
 
-      <!-- 3. Competition -->
-      <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200/60 space-y-3">
-        <div class="flex items-center justify-between">
-          <label class="text-xs font-bold text-slate-800">Competition</label>
-          <span id="compDisp" class="text-xs font-black text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">{{ recipe.competition }} PTS</span>
-        </div>
-        <input type="range" id="compVal" min="0" max="100" value="{{ recipe.competition }}" oninput="document.getElementById('compDisp').innerText = this.value + ' PTS'" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
-        <p class="text-[11px] text-slate-400">Elo stakes dynamic multiplier for ranked playoff tournaments.</p>
+        <button type="button" 
+                onclick="saveCourtCount()" 
+                id="saveCourtBtn"
+                class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-5 rounded-2xl text-xs shadow-md shadow-indigo-200 transition-all flex items-center space-x-1.5 active:scale-95">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+          </svg>
+          <span>Save</span>
+        </button>
       </div>
-
-      <!-- 4. Improvement -->
-      <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200/60 space-y-3">
-        <div class="flex items-center justify-between">
-          <label class="text-xs font-bold text-slate-800">Improvement</label>
-          <span id="impDisp" class="text-xs font-black text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">{{ recipe.improvement }} PTS</span>
-        </div>
-        <input type="range" id="impVal" min="0" max="100" value="{{ recipe.improvement }}" oninput="document.getElementById('impDisp').innerText = this.value + ' PTS'" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
-        <p class="text-[11px] text-slate-400">Training drills completion reward weight & coach rating bonus.</p>
-      </div>
-
-      <!-- 5. Play -->
-      <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200/60 space-y-3">
-        <div class="flex items-center justify-between">
-          <label class="text-xs font-bold text-slate-800">Play</label>
-          <span id="playDisp" class="text-xs font-black text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">{{ recipe.play }} PTS</span>
-        </div>
-        <input type="range" id="playVal" min="0" max="100" value="{{ recipe.play }}" oninput="document.getElementById('playDisp').innerText = this.value + ' PTS'" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
-        <p class="text-[11px] text-slate-400">Casual friendly match court cost rebate multiplier.</p>
-      </div>
-
-      <!-- 6. Experience -->
-      <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200/60 space-y-3">
-        <div class="flex items-center justify-between">
-          <label class="text-xs font-bold text-slate-800">Experience</label>
-          <span id="expDisp" class="text-xs font-black text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">{{ recipe.experience }} PTS</span>
-        </div>
-        <input type="range" id="expVal" min="0" max="100" value="{{ recipe.experience }}" oninput="document.getElementById('expDisp').innerText = this.value + ' PTS'" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
-        <p class="text-[11px] text-slate-400">Overall platform UX gamification XP scaling rate.</p>
-      </div>
-    </form>
+    </div>
   </div>
 
-  <!-- Bottom Card: Administrative System Audit Logs -->
+  <!-- Administrative System Audit Logs -->
   <div class="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm">
     <div class="flex items-center justify-between mb-6">
       <div>
@@ -121,3 +101,45 @@
   </div>
 </div>
 {% endblock %}
+
+{% block scripts %}
+<script>
+let currentCourts = parseInt(document.getElementById('courtCountDisplay')?.innerText || '6', 10);
+
+function adjustCourtCount(delta) {
+  currentCourts = Math.max(1, Math.min(20, currentCourts + delta));
+  const el = document.getElementById('courtCountDisplay');
+  if (el) el.innerText = currentCourts;
+}
+
+async function saveCourtCount() {
+  const btn = document.getElementById('saveCourtBtn');
+  if (btn) {
+    btn.disabled = true;
+    btn.classList.add('opacity-75');
+  }
+
+  try {
+    const res = await fetch('/api/settings/courts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ court_count: currentCourts })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message, 'success');
+    } else {
+      showToast(data.message || 'Failed to update court count.', 'danger');
+    }
+  } catch (err) {
+    showToast('Network error updating court count.', 'danger');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.classList.remove('opacity-75');
+    }
+  }
+}
+</script>
+{% endblock %}
+

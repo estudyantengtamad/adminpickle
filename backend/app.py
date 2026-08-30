@@ -27,6 +27,12 @@ def create_app():
     app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
     app.config.from_object(Config)
 
+    # Configure upload folder for profile pictures and assets
+    upload_dir = os.path.join(static_dir, 'uploads')
+    os.makedirs(upload_dir, exist_ok=True)
+    app.config['UPLOAD_FOLDER'] = upload_dir
+    app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5 MB max upload
+
     # Initialize Flask-Login
     login_manager = LoginManager()
     login_manager.login_view = 'auth.login'
@@ -42,18 +48,21 @@ def create_app():
     from backend.routes.auth import auth_bp
     from backend.routes.dashboard import dashboard_bp
     from backend.routes.users import users_bp
-    from backend.routes.open_play import open_play_bp
     from backend.routes.venues import venues_bp
+    from backend.routes.events import events_bp
     from backend.routes.moderation import moderation_bp
     from backend.routes.settings import settings_bp
+    from backend.routes.profile import profile_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(users_bp)
-    app.register_blueprint(open_play_bp)
     app.register_blueprint(venues_bp)
+    app.register_blueprint(events_bp)
     app.register_blueprint(moderation_bp)
     app.register_blueprint(settings_bp)
+    app.register_blueprint(profile_bp)
+
 
     @app.errorhandler(404)
     def page_not_found(e):

@@ -4,28 +4,34 @@
 {% block header_title %}Digital Booking Sheet{% endblock %}
 
 {% block content %}
-<div class="space-y-6 px-2 sm:px-6">
+<div class="space-y-4 sm:space-y-6">
   <!-- Clean & Minimal Header Bar -->
-  <div class="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-md shadow-slate-200/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+  <div
+    class="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-md shadow-slate-200/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
     <div>
-      <h2 class="text-xl font-bold text-slate-900 tracking-tight">Court Schedule Matrix</h2>
-      <p class="text-xs text-slate-500 font-medium">Whole-day booking sheet for all courts. Click any available cell to book, or click a booked cell to edit.</p>
+      <h2 class="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">Court Schedule Matrix</h2>
+      <p class="text-xs text-slate-500 font-medium">Whole-day booking sheet for all courts. Tap any available cell to
+        book, or tap a booked cell to edit.</p>
     </div>
 
     <!-- Date Picker & Quick Buttons -->
-    <div class="flex items-center space-x-3">
-      <div class="text-left">
+    <div class="flex flex-wrap items-center gap-2 sm:space-x-3">
+      <div class="flex-1 sm:flex-initial min-w-[140px]">
         <input type="date" id="bookingDate" value="{{ selected_date }}" onchange="onDateChange()"
-               class="bg-slate-50 border border-slate-300 text-slate-900 text-xs font-bold rounded-xl px-3.5 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 shadow-xs">
+          class="w-full bg-slate-50 border border-slate-300 text-slate-900 text-xs font-bold rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 shadow-xs">
       </div>
-      <button onclick="setQuickDate(0)" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs">Today</button>
-      <button onclick="setQuickDate(1)" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all">Tomorrow</button>
+      <div class="flex items-center space-x-2">
+        <button onclick="setQuickDate(0)"
+          class="px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs">Today</button>
+        <button onclick="setQuickDate(1)"
+          class="px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all">Tomorrow</button>
+      </div>
     </div>
   </div>
 
   <!-- Legend Bar -->
-  <div class="flex items-center justify-between px-2">
-    <div class="flex items-center space-x-6 text-xs font-medium text-slate-600">
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1 sm:px-2">
+    <div class="flex flex-wrap items-center gap-4 text-xs font-medium text-slate-600">
       <div class="flex items-center space-x-2">
         <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>
         <span>Available</span>
@@ -46,51 +52,76 @@
   </div>
 
   <!-- Court Schedule Matrix Table Container with Back Shadow -->
-  <div class="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-xl shadow-slate-300/40 overflow-x-auto">
-    <table class="w-full text-left border-collapse min-w-[760px]">
+  <div
+    class="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-2 sm:p-6 shadow-xl shadow-slate-300/40 overflow-x-auto">
+    <table class="w-full text-left border-collapse min-w-[720px]">
       <thead>
         <tr class="border-b border-slate-200 text-slate-400 text-xs font-bold uppercase tracking-wider">
-          <th class="py-3 px-4 w-32 bg-slate-50/70 sticky left-0 z-10">Time Slot</th>
+          <th class="py-3 px-3 w-28 sm:w-32 bg-slate-50 sticky left-0 z-20 border-r border-slate-100">Time Slot</th>
           {% for court in courts %}
-          <th class="py-3 px-3 text-center min-w-[130px]">{{ court }}</th>
+          <th class="py-3 px-3 text-center min-w-[125px] sm:min-w-[130px]">{{ court }}</th>
           {% endfor %}
         </tr>
       </thead>
       <tbody id="matrixTbody" class="divide-y divide-slate-100 text-xs">
         {% for time in time_slots %}
+
         <tr class="hover:bg-slate-50/50 transition-colors">
-          <td class="py-3.5 px-4 font-mono font-bold text-slate-700 bg-slate-50/70 sticky left-0 z-10">
+          <td
+            class="py-3.5 px-3 font-mono font-bold text-slate-800 bg-slate-50 sticky left-0 z-10 border-r border-slate-200/60">
             {{ time }}
           </td>
           {% for court in courts %}
-            {% set cell = matrix[time][court] %}
-            {% set is_vacant = cell.status == 'vacant' %}
-            {% set is_booked = cell.status == 'booked' %}
-            {% set is_open_play = cell.status == 'open_play' %}
+          {% set cell = matrix[time][court] %}
+          {% set is_vacant = cell.status == 'vacant' %}
+          {% set is_booked = cell.status == 'booked' %}
+          {% set is_open_play = cell.status == 'open_play' %}
 
-            <td class="p-2">
-              {% if is_vacant %}
-                <div onclick="openBookingModal('{{ time }}', '{{ court }}', 'vacant')"
-                     class="p-2.5 rounded-xl text-center cursor-pointer transition-all duration-150 bg-emerald-100 hover:bg-emerald-200/90 border border-emerald-300 text-emerald-900 font-extrabold shadow-xs hover:shadow-md">
-                  <span class="text-xs font-bold block">Available</span>
-                </div>
-              {% elif is_booked %}
-                <div onclick="openBookingModal('{{ time }}', '{{ court }}', 'booked', '{{ cell.customer_name }}', '{{ cell.payment_status }}')"
-                     class="p-2.5 rounded-xl text-center cursor-pointer transition-all duration-150 bg-rose-100 hover:bg-rose-200/90 border border-rose-250 text-rose-950 space-y-0.5 shadow-xs hover:shadow-md">
-                  <span class="text-[10px] font-bold uppercase tracking-wider text-rose-700 block leading-tight">Booked</span>
-                  <span class="text-xs font-bold text-rose-950 block leading-snug truncate">{{ cell.customer_name }}</span>
-                  <span class="text-[10px] font-extrabold block leading-tight {% if cell.payment_status == 'paid' %}text-emerald-700{% else %}text-amber-700{% endif %}">
-                    {% if cell.payment_status == 'paid' %}Paid{% else %}Unpaid{% endif %}
-                  </span>
-                </div>
-              {% else %}
-                <div onclick="showOpenPlayAlert('{{ cell.title }}', '{{ cell.time_range }}')"
-                     class="p-2.5 rounded-xl text-center cursor-not-allowed bg-purple-100 border border-purple-200/80 text-purple-900 opacity-90 space-y-0.5 shadow-xs">
-                  <span class="text-[10px] font-bold uppercase tracking-wider text-purple-700 block leading-tight">Open Play</span>
-                  <span class="text-xs font-bold text-purple-950 block leading-snug truncate">{{ cell.title }}</span>
-                </div>
-              {% endif %}
-            </td>
+          <td class="p-2">
+            {% if is_vacant %}
+            <div onclick="openBookingModalFromElement(this)" data-time="{{ time }}" data-court="{{ court }}"
+              data-mode="vacant"
+              class="p-2.5 rounded-xl text-center cursor-pointer transition-all duration-150 bg-emerald-100 hover:bg-emerald-200/90 border border-emerald-300 text-emerald-900 font-extrabold shadow-xs hover:shadow-md">
+              <span class="text-xs font-bold block">Available</span>
+            </div>
+            {% elif is_booked %}
+            <div onclick="openBookingModalFromElement(this)" data-time="{{ time }}"
+              data-start-time="{{ cell.start_time_slot or time }}" data-court="{{ court }}" data-mode="booked"
+              data-name="{{ cell.customer_name }}" data-payment="{{ cell.payment_status }}"
+              data-rent-paddle="{{ '1' if cell.rent_paddle else '0' }}" data-paddle-count="{{ cell.paddle_count or 0 }}"
+              data-duration="{{ cell.duration_hours or 1 }}"
+              class="p-2.5 rounded-xl text-center cursor-pointer transition-all duration-150 bg-rose-100 hover:bg-rose-200/90 border border-rose-250 text-rose-950 space-y-0.5 shadow-xs hover:shadow-md">
+              <span
+                class="text-[10px] font-bold uppercase tracking-wider text-rose-700 block leading-tight">Booked</span>
+              <span class="text-xs font-bold text-rose-950 block leading-snug truncate">{{ cell.customer_name }}</span>
+              <div class="flex flex-wrap items-center justify-center gap-1 my-0.5">
+                {% if cell.duration_hours and cell.duration_hours > 1 %}
+                <span
+                  class="inline-flex items-center gap-0.5 text-[9px] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-200/80">
+                  ⏱️ {{ cell.duration_hours }} hrs
+                </span>
+                {% endif %}
+                {% if cell.rent_paddle %}
+                <span
+                  class="inline-flex items-center gap-0.5 text-[9px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded-md border border-indigo-200/80">
+                  🏓 {{ cell.paddle_count }} Paddle{% if cell.paddle_count > 1 %}s{% endif %}
+                </span>
+                {% endif %}
+              </div>
+              <span
+                class="text-[10px] font-extrabold block leading-tight {% if cell.payment_status == 'paid' %}text-emerald-700{% else %}text-amber-700{% endif %}">
+                {% if cell.payment_status == 'paid' %}Paid{% else %}Unpaid{% endif %}
+              </span>
+            </div>
+            {% else %}
+            <div onclick="showOpenPlayAlert('{{ cell.title }}', '{{ cell.time_range }}')"
+              class="p-2.5 rounded-xl text-center cursor-not-allowed bg-purple-100 border border-purple-200/80 text-purple-900 opacity-90 space-y-0.5 shadow-xs">
+              <span class="text-[10px] font-bold uppercase tracking-wider text-purple-700 block leading-tight">Open
+                Play</span>
+              <span class="text-xs font-bold text-purple-950 block leading-snug truncate">{{ cell.title }}</span>
+            </div>
+            {% endif %}
+          </td>
           {% endfor %}
         </tr>
         {% endfor %}
@@ -100,14 +131,16 @@
 </div>
 
 <!-- DIRECT BOOKING POPUP MODAL -->
-<div id="bookingModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+<div id="bookingModal"
+  class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
   <div class="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border border-slate-200 space-y-4">
     <div class="flex items-center justify-between border-b border-slate-100 pb-3">
       <div>
         <h3 class="text-base font-bold text-slate-900" id="modalTitle">Book Court Slot</h3>
         <p class="text-xs text-slate-500" id="modalSubtitle">Court & Time information</p>
       </div>
-      <button onclick="closeBookingModal()" class="text-slate-400 hover:text-slate-700 text-xl font-bold">&times;</button>
+      <button onclick="closeBookingModal()"
+        class="text-slate-400 hover:text-slate-700 text-xl font-bold">&times;</button>
     </div>
 
     <form id="bookingForm" onsubmit="submitBooking(event)" class="space-y-4">
@@ -118,35 +151,99 @@
       <div>
         <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Customer Name</label>
         <input type="text" id="modalCustomerName" required placeholder="e.g. Juan Dela Cruz"
-               class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/30">
+          class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/30">
+      </div>
+
+      <!-- Booking Duration Option (1 - 12 Consecutive Hours) -->
+      <div>
+        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Booking Duration</label>
+        <select id="modalDurationHours"
+          class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/30">
+          <option value="1">1 Hour (Standard Slot)</option>
+          <option value="2">2 Hours (Consecutive Slots)</option>
+          <option value="3">3 Hours (Consecutive Slots)</option>
+          <option value="4">4 Hours (Consecutive Slots)</option>
+          <option value="5">5 Hours (Consecutive Slots)</option>
+          <option value="6">6 Hours (Consecutive Slots)</option>
+          <option value="7">7 Hours (Consecutive Slots)</option>
+          <option value="8">8 Hours (Consecutive Slots)</option>
+          <option value="9">9 Hours (Consecutive Slots)</option>
+          <option value="10">10 Hours (Consecutive Slots)</option>
+          <option value="11">11 Hours (Consecutive Slots)</option>
+          <option value="12">12 Hours (Consecutive Slots)</option>
+          <option value="13">13 Hours (Consecutive Slots)</option>
+          <option value="14">14 Hours (Consecutive Slots)</option>
+          <option value="15">15 Hours (Consecutive Slots)</option>
+          <option value="16">16 Hours (Consecutive Slots)</option>
+        </select>
       </div>
 
       <div>
         <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Payment Status</label>
         <div class="grid grid-cols-2 gap-3">
           <button type="button" id="btnStatusPaid" onclick="setPaymentStatusChoice('paid')"
-                  class="py-2.5 px-4 rounded-xl text-xs font-bold border transition-all flex items-center justify-center space-x-1.5 bg-emerald-600 text-white border-emerald-600">
+            class="py-2.5 px-4 rounded-xl text-xs font-bold border transition-all flex items-center justify-center space-x-1.5 bg-emerald-600 text-white border-emerald-600">
             <span>Paid</span>
           </button>
           <button type="button" id="btnStatusUnpaid" onclick="setPaymentStatusChoice('unpaid')"
-                  class="py-2.5 px-4 rounded-xl text-xs font-bold border transition-all flex items-center justify-center space-x-1.5 bg-slate-100 text-slate-700 border-slate-200">
+            class="py-2.5 px-4 rounded-xl text-xs font-bold border transition-all flex items-center justify-center space-x-1.5 bg-slate-100 text-slate-700 border-slate-200">
             <span>Unpaid</span>
           </button>
         </div>
         <input type="hidden" id="modalPaymentStatus" value="paid">
       </div>
 
+      <!-- Paddle Rental Option with Clean +/- Stepper -->
+      <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80 space-y-3">
+        <div class="flex items-center justify-between">
+          <label for="modalRentPaddle" class="flex items-center space-x-2.5 cursor-pointer select-none">
+            <input type="checkbox" id="modalRentPaddle" onchange="togglePaddleCountInput()"
+              class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500/30">
+            <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+              <span>🏓 Rent Paddle(s)</span>
+            </span>
+          </label>
+        </div>
+
+        <div id="paddleCountContainer"
+          class="hidden flex items-center justify-between pt-2.5 border-t border-slate-200/60">
+          <div>
+            <label class="text-xs font-bold text-slate-700 block">Quantity</label>
+            <span class="text-[11px] text-slate-400">Paddle(s) for players</span>
+          </div>
+
+          <div class="flex items-center space-x-2 bg-white border border-slate-300 rounded-2xl p-1 shadow-xs">
+            <button type="button" 
+                    onclick="adjustPaddleCount(-1)" 
+                    class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 active:scale-95 text-slate-700 font-black text-base flex items-center justify-center transition-all">
+              −
+            </button>
+            <div class="w-10 text-center">
+              <span id="modalPaddleCountDisplay" class="text-sm font-black text-slate-900">1</span>
+            </div>
+            <button type="button" 
+                    onclick="adjustPaddleCount(1)" 
+                    class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 active:scale-95 text-slate-700 font-black text-base flex items-center justify-center transition-all">
+              +
+            </button>
+          </div>
+          <input type="hidden" id="modalPaddleCount" value="1">
+        </div>
+      </div>
+
       <div class="flex items-center justify-between pt-3 border-t border-slate-100 gap-2">
         <button type="button" id="btnClearBooking" onclick="clearCurrentBooking()"
-                class="hidden px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition-all">
+          class="hidden px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition-all">
           Clear Booking
         </button>
 
         <div class="flex items-center space-x-2 ml-auto">
-          <button type="button" onclick="closeBookingModal()" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold">
+          <button type="button" onclick="closeBookingModal()"
+            class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold">
             Cancel
           </button>
-          <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs">
+          <button type="submit"
+            class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs">
             Save
           </button>
         </div>
@@ -158,191 +255,258 @@
 
 {% block scripts %}
 <script>
-let currentDate = "{{ selected_date }}";
+  let currentDate = "{{ selected_date }}";
 
-function onDateChange() {
-  currentDate = document.getElementById('bookingDate').value;
-  document.getElementById('displayDateTitle').innerText = 'Schedule for ' + currentDate;
-  loadMatrixData();
-}
-
-function setQuickDate(daysOffset) {
-  const d = new Date();
-  d.setDate(d.getDate() + daysOffset);
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  const dateStr = `${yyyy}-${mm}-${dd}`;
-  document.getElementById('bookingDate').value = dateStr;
-  onDateChange();
-}
-
-async function loadMatrixData() {
-  try {
-    const res = await fetch(`/api/booking-sheet/matrix?date=${currentDate}`);
-    const data = await res.json();
-    if (data.success) {
-      renderMatrix(data.time_slots, data.courts, data.matrix);
-    }
-  } catch (err) {
-    console.error('Failed to load schedule matrix', err);
+  function onDateChange() {
+    currentDate = document.getElementById('bookingDate').value;
+    document.getElementById('displayDateTitle').innerText = 'Schedule for ' + currentDate;
+    loadMatrixData();
   }
-}
 
-function renderMatrix(timeSlots, courts, matrix) {
-  const tbody = document.getElementById('matrixTbody');
-  if (!tbody) return;
+  function setQuickDate(daysOffset) {
+    const d = new Date();
+    d.setDate(d.getDate() + daysOffset);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const dateStr = `${yyyy}-${mm}-${dd}`;
+    document.getElementById('bookingDate').value = dateStr;
+    onDateChange();
+  }
 
-  tbody.innerHTML = '';
+  async function loadMatrixData() {
+    try {
+      const res = await fetch(`/api/booking-sheet/matrix?date=${currentDate}`);
+      const data = await res.json();
+      if (data.success) {
+        renderMatrix(data.time_slots, data.courts, data.matrix);
+      }
+    } catch (err) {
+      console.error('Failed to load schedule matrix', err);
+    }
+  }
 
-  timeSlots.forEach(time => {
-    let trHtml = `<tr class="hover:bg-slate-50/50 transition-colors">
-      <td class="py-3.5 px-4 font-mono font-bold text-slate-700 bg-slate-50/70 sticky left-0 z-10">${time}</td>`;
+  function renderMatrix(timeSlots, courts, matrix) {
+    const tbody = document.getElementById('matrixTbody');
+    if (!tbody) return;
 
-    courts.forEach(court => {
-      const cell = matrix[time][court];
-      const isVacant = cell.status === 'vacant';
-      const isBooked = cell.status === 'booked';
-      const isOpenPlay = cell.status === 'open_play';
+    tbody.innerHTML = '';
 
-      let cellHtml = '';
-      if (isVacant) {
-        cellHtml = `<div onclick="openBookingModal('${time}', '${court}', 'vacant')"
+    timeSlots.forEach(time => {
+      let trHtml = `<tr class="hover:bg-slate-50/50 transition-colors">
+      <td class="py-3.5 px-3 font-mono font-bold text-slate-800 bg-slate-50 sticky left-0 z-10 border-r border-slate-200/60">${time}</td>`;
+
+      courts.forEach(court => {
+        const cell = matrix[time][court];
+        const isVacant = cell.status === 'vacant';
+        const isBooked = cell.status === 'booked';
+        const isOpenPlay = cell.status === 'open_play';
+
+        let cellHtml = '';
+        if (isVacant) {
+          cellHtml = `<div onclick="openBookingModalFromElement(this)"
+             data-time="${time}" data-court="${court}" data-mode="vacant"
              class="p-2.5 rounded-xl text-center cursor-pointer transition-all duration-150 bg-emerald-100 hover:bg-emerald-200/90 border border-emerald-300 text-emerald-900 font-extrabold shadow-xs hover:shadow-md">
           <span class="text-xs font-bold block">Available</span>
         </div>`;
-      } else if (isBooked) {
-        const nameEscaped = cell.customer_name.replace(/'/g, "\\'");
-        const payTagClass = cell.payment_status === 'paid' ? 'text-emerald-700' : 'text-amber-700';
-        const payTagText = cell.payment_status === 'paid' ? 'Paid' : 'Unpaid';
+        } else if (isBooked) {
+          const nameEscaped = cell.customer_name.replace(/'/g, "\\'");
+          const payTagClass = cell.payment_status === 'paid' ? 'text-emerald-700' : 'text-amber-700';
+          const payTagText = cell.payment_status === 'paid' ? 'Paid' : 'Unpaid';
+          const rentPaddle = cell.rent_paddle || false;
+          const paddleCount = cell.paddle_count || 0;
+          const durationHours = cell.duration_hours || 1;
+          const startTimeSlot = cell.start_time_slot || time;
+          const durBadge = durationHours > 1 ? `<span class="inline-flex items-center gap-0.5 text-[9px] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-200/80">⏱️ ${durationHours} hrs</span>` : '';
+          const paddleBadge = rentPaddle ? `<span class="inline-flex items-center gap-0.5 text-[9px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded-md border border-indigo-200/80">🏓 ${paddleCount} Paddle${paddleCount > 1 ? 's' : ''}</span>` : '';
 
-        cellHtml = `<div onclick="openBookingModal('${time}', '${court}', 'booked', '${nameEscaped}', '${cell.payment_status}')"
+          cellHtml = `<div onclick="openBookingModalFromElement(this)"
+             data-time="${time}" data-start-time="${startTimeSlot}" data-court="${court}" data-mode="booked"
+             data-name="${nameEscaped}" data-payment="${cell.payment_status}"
+             data-rent-paddle="${rentPaddle ? 1 : 0}" data-paddle-count="${paddleCount}"
+             data-duration="${durationHours}"
              class="p-2.5 rounded-xl text-center cursor-pointer transition-all duration-150 bg-rose-100 hover:bg-rose-200/90 border border-rose-250 text-rose-950 space-y-0.5 shadow-xs hover:shadow-md">
           <span class="text-[10px] font-bold uppercase tracking-wider text-rose-700 block leading-tight">Booked</span>
           <span class="text-xs font-bold text-rose-950 block leading-snug truncate">${cell.customer_name}</span>
+          <div class="flex flex-wrap items-center justify-center gap-1 my-0.5">
+            ${durBadge}
+            ${paddleBadge}
+          </div>
           <span class="text-[10px] font-extrabold block leading-tight ${payTagClass}">${payTagText}</span>
         </div>`;
-      } else {
-        const titleEscaped = cell.title.replace(/'/g, "\\'");
-        cellHtml = `<div onclick="showOpenPlayAlert('${titleEscaped}', '${cell.time_range}')"
+        } else {
+          const titleEscaped = cell.title.replace(/'/g, "\\'");
+          cellHtml = `<div onclick="showOpenPlayAlert('${titleEscaped}', '${cell.time_range}')"
              class="p-2.5 rounded-xl text-center cursor-not-allowed bg-purple-100 border border-purple-200/80 text-purple-900 opacity-90 space-y-0.5 shadow-xs">
           <span class="text-[10px] font-bold uppercase tracking-wider text-purple-700 block leading-tight">Open Play</span>
           <span class="text-xs font-bold text-purple-950 block leading-snug truncate">${cell.title}</span>
         </div>`;
+        }
+
+        trHtml += `<td class="p-2">${cellHtml}</td>`;
+      });
+
+      trHtml += `</tr>`;
+      tbody.innerHTML += trHtml;
+    });
+  }
+
+  function openBookingModalFromElement(el) {
+    const timeSlot = el.getAttribute('data-start-time') || el.getAttribute('data-time') || '';
+    const court = el.getAttribute('data-court') || '';
+    const mode = el.getAttribute('data-mode') || 'vacant';
+    const name = el.getAttribute('data-name') || '';
+    const paymentStatus = el.getAttribute('data-payment') || 'paid';
+    const rentPaddle = el.getAttribute('data-rent-paddle') === '1';
+    const paddleCount = parseInt(el.getAttribute('data-paddle-count')) || 0;
+    const durationHours = parseInt(el.getAttribute('data-duration')) || 1;
+    openBookingModal(timeSlot, court, mode, name, paymentStatus, rentPaddle, paddleCount, durationHours);
+  }
+
+
+  function togglePaddleCountInput() {
+    const isChecked = document.getElementById('modalRentPaddle').checked;
+    const container = document.getElementById('paddleCountContainer');
+    if (isChecked) {
+      container.classList.remove('hidden');
+    } else {
+      container.classList.add('hidden');
+    }
+  }
+
+  function adjustPaddleCount(delta) {
+    const hiddenInp = document.getElementById('modalPaddleCount');
+    const display = document.getElementById('modalPaddleCountDisplay');
+    let count = parseInt(hiddenInp?.value || '1', 10);
+    count = Math.max(1, Math.min(20, count + delta));
+    if (hiddenInp) hiddenInp.value = count;
+    if (display) display.innerText = count;
+  }
+
+  function openBookingModal(timeSlot, court, mode, name = '', paymentStatus = 'paid', rentPaddle = false, paddleCount = 1, durationHours = 1) {
+    document.getElementById('modalTimeSlot').value = timeSlot;
+    document.getElementById('modalCourt').value = court;
+    document.getElementById('modalMode').value = mode;
+    document.getElementById('modalCustomerName').value = name;
+    setPaymentStatusChoice(paymentStatus);
+
+    const durationEl = document.getElementById('modalDurationHours');
+    if (durationEl) {
+      durationEl.value = String(durationHours > 0 ? durationHours : 1);
+    }
+
+    const rentChk = document.getElementById('modalRentPaddle');
+    const countInp = document.getElementById('modalPaddleCount');
+    const display = document.getElementById('modalPaddleCountDisplay');
+    const finalPaddleCount = paddleCount > 0 ? paddleCount : 1;
+    rentChk.checked = Boolean(rentPaddle);
+    if (countInp) countInp.value = finalPaddleCount;
+    if (display) display.innerText = finalPaddleCount;
+    togglePaddleCountInput();
+
+    const titleEl = document.getElementById('modalTitle');
+    const subEl = document.getElementById('modalSubtitle');
+    const clearBtn = document.getElementById('btnClearBooking');
+
+    if (mode === 'booked') {
+      titleEl.innerText = `Edit Booking — ${court}`;
+      subEl.innerText = `Time Slot: ${timeSlot} on ${currentDate}`;
+      clearBtn.classList.remove('hidden');
+    } else {
+      titleEl.innerText = `Book ${court}`;
+      subEl.innerText = `Time Slot: ${timeSlot} on ${currentDate}`;
+      clearBtn.classList.add('hidden');
+    }
+
+    document.getElementById('bookingModal').classList.remove('hidden');
+  }
+
+  function closeBookingModal() {
+    document.getElementById('bookingModal').classList.add('hidden');
+  }
+
+  function setPaymentStatusChoice(status) {
+    document.getElementById('modalPaymentStatus').value = status;
+    const btnPaid = document.getElementById('btnStatusPaid');
+    const btnUnpaid = document.getElementById('btnStatusUnpaid');
+
+    if (status === 'paid') {
+      btnPaid.className = 'py-2.5 px-4 rounded-xl text-xs font-bold border transition-all flex items-center justify-center space-x-1.5 bg-emerald-600 text-white border-emerald-600';
+      btnUnpaid.className = 'py-2.5 px-4 rounded-xl text-xs font-bold border transition-all flex items-center justify-center space-x-1.5 bg-slate-100 text-slate-700 border-slate-200';
+    } else {
+      btnPaid.className = 'py-2.5 px-4 rounded-xl text-xs font-bold border transition-all flex items-center justify-center space-x-1.5 bg-slate-100 text-slate-700 border-slate-200';
+      btnUnpaid.className = 'py-2.5 px-4 rounded-xl text-xs font-bold border transition-all flex items-center justify-center space-x-1.5 bg-amber-500 text-white border-amber-500';
+    }
+  }
+
+  async function submitBooking(e) {
+    e.preventDefault();
+    const timeSlot = document.getElementById('modalTimeSlot').value;
+    const court = document.getElementById('modalCourt').value;
+    const customerName = document.getElementById('modalCustomerName').value;
+    const paymentStatus = document.getElementById('modalPaymentStatus').value;
+    const rentPaddle = document.getElementById('modalRentPaddle').checked;
+    const paddleCount = parseInt(document.getElementById('modalPaddleCount').value) || 1;
+    const durationHours = parseInt(document.getElementById('modalDurationHours').value) || 1;
+
+    try {
+      const res = await fetch('/api/booking-sheet/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: currentDate,
+          court: court,
+          time_slot: timeSlot,
+          customer_name: customerName,
+          payment_status: paymentStatus,
+          rent_paddle: rentPaddle,
+          paddle_count: rentPaddle ? paddleCount : 0,
+          duration_hours: durationHours
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(data.message, 'success');
+        closeBookingModal();
+        loadMatrixData();
+      } else {
+        showToast(data.message, 'danger');
       }
-
-      trHtml += `<td class="p-2">${cellHtml}</td>`;
-    });
-
-    trHtml += `</tr>`;
-    tbody.innerHTML += trHtml;
-  });
-}
-
-function openBookingModal(timeSlot, court, mode, name = '', paymentStatus = 'paid') {
-  document.getElementById('modalTimeSlot').value = timeSlot;
-  document.getElementById('modalCourt').value = court;
-  document.getElementById('modalMode').value = mode;
-  document.getElementById('modalCustomerName').value = name;
-  setPaymentStatusChoice(paymentStatus);
-
-  const titleEl = document.getElementById('modalTitle');
-  const subEl = document.getElementById('modalSubtitle');
-  const clearBtn = document.getElementById('btnClearBooking');
-
-  if (mode === 'booked') {
-    titleEl.innerText = `Edit Booking — ${court}`;
-    subEl.innerText = `Time Slot: ${timeSlot} on ${currentDate}`;
-    clearBtn.classList.remove('hidden');
-  } else {
-    titleEl.innerText = `Book ${court}`;
-    subEl.innerText = `Time Slot: ${timeSlot} on ${currentDate}`;
-    clearBtn.classList.add('hidden');
-  }
-
-  document.getElementById('bookingModal').classList.remove('hidden');
-}
-
-function closeBookingModal() {
-  document.getElementById('bookingModal').classList.add('hidden');
-}
-
-function setPaymentStatusChoice(status) {
-  document.getElementById('modalPaymentStatus').value = status;
-  const btnPaid = document.getElementById('btnStatusPaid');
-  const btnUnpaid = document.getElementById('btnStatusUnpaid');
-
-  if (status === 'paid') {
-    btnPaid.className = 'py-2.5 px-4 rounded-xl text-xs font-bold border transition-all flex items-center justify-center space-x-1.5 bg-emerald-600 text-white border-emerald-600';
-    btnUnpaid.className = 'py-2.5 px-4 rounded-xl text-xs font-bold border transition-all flex items-center justify-center space-x-1.5 bg-slate-100 text-slate-700 border-slate-200';
-  } else {
-    btnPaid.className = 'py-2.5 px-4 rounded-xl text-xs font-bold border transition-all flex items-center justify-center space-x-1.5 bg-slate-100 text-slate-700 border-slate-200';
-    btnUnpaid.className = 'py-2.5 px-4 rounded-xl text-xs font-bold border transition-all flex items-center justify-center space-x-1.5 bg-amber-500 text-white border-amber-500';
-  }
-}
-
-async function submitBooking(e) {
-  e.preventDefault();
-  const timeSlot = document.getElementById('modalTimeSlot').value;
-  const court = document.getElementById('modalCourt').value;
-  const customerName = document.getElementById('modalCustomerName').value;
-  const paymentStatus = document.getElementById('modalPaymentStatus').value;
-
-  try {
-    const res = await fetch('/api/booking-sheet/save', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        date: currentDate,
-        court: court,
-        time_slot: timeSlot,
-        customer_name: customerName,
-        payment_status: paymentStatus
-      })
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast(data.message, 'success');
-      closeBookingModal();
-      loadMatrixData();
-    } else {
-      showToast(data.message, 'danger');
+    } catch (err) {
+      showToast('Failed to save booking.', 'danger');
     }
-  } catch (err) {
-    showToast('Failed to save booking.', 'danger');
   }
-}
 
-async function clearCurrentBooking() {
-  const timeSlot = document.getElementById('modalTimeSlot').value;
-  const court = document.getElementById('modalCourt').value;
-  if (!confirm(`Cancel and clear booking for ${court} at ${timeSlot}?`)) return;
+  async function clearCurrentBooking() {
+    const timeSlot = document.getElementById('modalTimeSlot').value;
+    const court = document.getElementById('modalCourt').value;
+    if (!confirm(`Cancel and clear booking for ${court} at ${timeSlot}?`)) return;
 
-  try {
-    const res = await fetch('/api/booking-sheet/clear', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        date: currentDate,
-        court: court,
-        time_slot: timeSlot
-      })
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast(data.message, 'success');
-      closeBookingModal();
-      loadMatrixData();
-    } else {
-      showToast(data.message, 'danger');
+    try {
+      const res = await fetch('/api/booking-sheet/clear', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: currentDate,
+          court: court,
+          time_slot: timeSlot
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(data.message, 'success');
+        closeBookingModal();
+        loadMatrixData();
+      } else {
+        showToast(data.message, 'danger');
+      }
+    } catch (err) {
+      showToast('Failed to clear booking.', 'danger');
     }
-  } catch (err) {
-    showToast('Failed to clear booking.', 'danger');
   }
-}
 
-function showOpenPlayAlert(title, range) {
-  showToast(`Locked: Slot is reserved for Open Play ('${title}', ${range}) and cannot be booked directly.`, 'info');
-}
+  function showOpenPlayAlert(title, range) {
+    showToast(`Locked: Slot is reserved for Open Play ('${title}', ${range}) and cannot be booked directly.`, 'info');
+  }
 </script>
 {% endblock %}

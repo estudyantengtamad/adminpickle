@@ -8,6 +8,7 @@ function showToast(message, type = 'success') {
   const container = document.getElementById('toast-container') || (() => {
     const el = document.createElement('div');
     el.id = 'toast-container';
+    el.className = 'fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:w-80 z-50 pointer-events-none flex flex-col space-y-2';
     document.body.appendChild(el);
     return el;
   })();
@@ -15,12 +16,12 @@ function showToast(message, type = 'success') {
   const toast = document.createElement('div');
   const bgColor = type === 'success' ? 'bg-emerald-600' : (type === 'danger' ? 'bg-rose-600' : 'bg-indigo-600');
   
-  toast.className = `${bgColor} text-white px-4 py-3 rounded-lg shadow-xl flex items-center space-x-3 mb-2 transition-all duration-300 transform translate-y-2 opacity-0 text-sm font-medium`;
+  toast.className = `${bgColor} text-white px-4 py-3 rounded-2xl shadow-xl flex items-center space-x-3 transition-all duration-300 transform translate-y-2 opacity-0 text-xs sm:text-sm font-semibold pointer-events-auto border border-white/20`;
   toast.innerHTML = `
     <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
     </svg>
-    <span>${message}</span>
+    <span class="flex-1">${message}</span>
   `;
 
   container.appendChild(toast);
@@ -53,7 +54,20 @@ document.addEventListener('DOMContentLoaded', () => {
       overlay.classList.add('hidden');
     });
   }
+
+  // Close mobile sidebar when clicking a nav link
+  if (sidebar) {
+    sidebar.querySelectorAll('nav a').forEach(link => {
+      link.addEventListener('click', () => {
+        if (window.innerWidth < 768) {
+          sidebar.classList.add('-translate-x-full');
+          if (overlay) overlay.classList.add('hidden');
+        }
+      });
+    });
+  }
 });
+
 
 // Quick Admin Actions (Executive Dashboard)
 async function triggerQuickAction(actionType, customPayload = {}) {
@@ -102,7 +116,13 @@ function selectPlayer(playerJson) {
   document.querySelectorAll('.player-row').forEach(row => row.classList.remove('bg-indigo-50/70', 'border-l-4', 'border-indigo-600'));
   const selectedRow = document.getElementById(`row-${player.id}`);
   if (selectedRow) selectedRow.classList.add('bg-indigo-50/70', 'border-l-4', 'border-indigo-600');
+
+  // Smooth scroll to inspector on mobile screens
+  if (window.innerWidth < 1024) {
+    inspector.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
 }
+
 
 async function performPlayerAction(action) {
   const playerId = document.getElementById('inspPlayerId').innerText;
@@ -213,97 +233,6 @@ async function emergencyResetMatchmaker() {
     showToast('Error resetting matchmaking engine.', 'danger');
   }
 }
-
-// Venue & Court Grid Matrix Interactions
-async function toggleCourtSlot(timeSlot, court) {
-  try {
-    const res = await fetch('/api/venues/toggle_slot', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ time_slot: timeSlot, court: court })
-    });
-    const data = await res.json();
-    if (data.success) {
-      const cell = document.getElementById(`slot-${timeSlot.replace(/[^a-zA-Z0-9]/g, '')}-${court.replace(/\s+/g, '')}`);
-      if (cell) {
-        cell.className = `court-cell p-3 rounded-lg text-center font-semibold text-xs transition-all shadow-sm status-${data.new_status}`;
-        cell.innerText = data.new_status;
-      }
-      showToast(data.message, 'success');
-    }
-  } catch (err) {
-    showToast('Failed to toggle court status.', 'danger');
-  }
-}
-
-async function addCourtTimeSlot() {
-  const time = prompt('Enter new schedule time slot (e.g. 08:00 PM):', '08:00 PM');
-  if (!time) return;
-
-  try {
-    const res = await fetch('/api/venues/add_slot', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ time })
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast(data.message, 'success');
-      setTimeout(() => location.reload(), 800);
-    } else {
-      showToast(data.message, 'danger');
-    }
-  } catch (err) {
-    showToast('Error adding time slot.', 'danger');
-  }
-}
-
-async function blockTimeSlot() {
-  const slot = prompt('Enter time slot to block all courts for maintenance (e.g. 04:00 PM):', '04:00 PM');
-  if (!slot) return;
-
-  try {
-    const res = await fetch('/api/venues/block_time', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ time_slot: slot })
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast(data.message, 'warning');
-      setTimeout(() => location.reload(), 800);
-    } else {
-      showToast(data.message, 'danger');
-    }
-  } catch (err) {
-    showToast('Error blocking time slot.', 'danger');
-  }
-}
-
-async function cancelBookingPrompt() {
-  const court = prompt('Enter Court Name to cancel & refund (e.g. Court 1):', 'Court 1');
-  if (!court) return;
-  const slot = prompt('Enter Time Slot (e.g. 10:00 AM):', '10:00 AM');
-  if (!slot) return;
-
-  try {
-    const res = await fetch('/api/venues/cancel_booking', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ court, time_slot: slot })
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast(data.message, 'success');
-      setTimeout(() => location.reload(), 800);
-    } else {
-      showToast(data.message, 'danger');
-    }
-  } catch (err) {
-    showToast('Error cancelling booking.', 'danger');
-  }
-}
-
 // Moderation Actions
 async function handleReportAction(reportId, action) {
   try {
@@ -315,64 +244,19 @@ async function handleReportAction(reportId, action) {
     const data = await res.json();
     if (data.success) {
       showToast(data.message, 'success');
-      const badge = document.getElementById(`rep-status-${reportId}`);
-      if (badge) {
-        badge.innerText = data.status;
-        badge.className = 'px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800';
+      const card = document.getElementById(`report-card-${reportId}`);
+      if (card) {
+        card.style.transition = 'all 0.3s ease';
+        card.style.opacity = '0';
+        setTimeout(() => card.remove(), 300);
       }
+    } else {
+      showToast(data.message || 'Error processing report.', 'danger');
     }
   } catch (err) {
     showToast('Error handling moderation report.', 'danger');
   }
 }
 
-async function submitNewEvent(event) {
-  event.preventDefault();
-  const title = document.getElementById('evtTitle').value;
-  const venue = document.getElementById('evtVenue').value;
-  const date = document.getElementById('evtDate').value;
-  const tag = document.getElementById('evtTag').value;
 
-  try {
-    const res = await fetch('/api/moderation/create_event', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, venue, date, tag })
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast(data.message, 'success');
-      setTimeout(() => location.reload(), 800);
-    }
-  } catch (err) {
-    showToast('Error creating tournament posting.', 'danger');
-  }
-}
 
-// System Settings RECIPE Sliders Handler
-async function saveRecipeSettings(event) {
-  event.preventDefault();
-  const payload = {
-    recognition: document.getElementById('recVal').value,
-    engagement: document.getElementById('engVal').value,
-    competition: document.getElementById('compVal').value,
-    improvement: document.getElementById('impVal').value,
-    play: document.getElementById('playVal').value,
-    experience: document.getElementById('expVal').value,
-  };
-
-  try {
-    const res = await fetch('/api/settings/save', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast(data.message, 'success');
-      setTimeout(() => location.reload(), 1000);
-    }
-  } catch (err) {
-    showToast('Failed to save RECIPE settings.', 'danger');
-  }
-}

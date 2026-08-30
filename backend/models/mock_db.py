@@ -246,23 +246,73 @@ class DirectBooking:
       - payment_status: 'paid' or 'unpaid'
       - created_at: Datetime created
     """
-    def __init__(self, id, date, court, time_slot, customer_name, payment_status="paid", created_at=None):
+    def __init__(self, id, date, court, time_slot, customer_name, payment_status="paid", rent_paddle=False, paddle_count=0, duration_hours=1, group_id=None, start_time_slot=None, created_at=None):
         self.id = id
+        self.group_id = group_id or id
         self.date = date
         self.court = court
         self.time_slot = time_slot
+        self.start_time_slot = start_time_slot or time_slot
         self.customer_name = customer_name
         self.payment_status = payment_status.lower()  # 'paid' or 'unpaid'
+        self.rent_paddle = bool(rent_paddle)
+        self.paddle_count = int(paddle_count) if rent_paddle else 0
+        self.duration_hours = int(duration_hours) if duration_hours else 1
         self.created_at = created_at or datetime.now()
 
     def to_dict(self):
         return {
             "id": self.id,
+            "group_id": self.group_id,
             "date": self.date,
             "court": self.court,
             "time_slot": self.time_slot,
+            "start_time_slot": self.start_time_slot,
             "customer_name": self.customer_name,
             "payment_status": self.payment_status,
+            "rent_paddle": self.rent_paddle,
+            "paddle_count": self.paddle_count,
+            "duration_hours": self.duration_hours,
+            "created_at": self.created_at.strftime("%Y-%m-%d %H:%M:%S")
+        }
+
+
+class EventPost:
+    """
+    EventPost Entity
+    Job: Stores tournaments, open play announcements, promos, and club notices visible on player dashboards.
+    Fields:
+      - id: Unique event ID (e.g., 'EVT-101')
+      - title: Event name / headline
+      - event_type: 'Tournament', 'Open Play Day', 'Announcement', 'Promo'
+      - date: Display date string (e.g., 'Nov 15, 2026')
+      - description: Short summary / details (max 200 chars recommended)
+      - image_url: Optional photo / poster banner URL or base64 data string
+      - author: Name of posting admin
+      - status: 'Published'
+      - created_at: Datetime
+    """
+    def __init__(self, id, title, event_type="Announcement", date=None, description="", image_url="", author="Admin", status="Published", created_at=None):
+        self.id = id
+        self.title = title
+        self.event_type = event_type
+        self.date = date or datetime.now().strftime("%b %d, %Y")
+        self.description = description or ""
+        self.image_url = image_url or ""
+        self.author = author
+        self.status = status
+        self.created_at = created_at or datetime.now()
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "title": self.title,
+            "event_type": self.event_type,
+            "date": self.date,
+            "description": self.description,
+            "image_url": self.image_url,
+            "author": self.author,
+            "status": self.status,
             "created_at": self.created_at.strftime("%Y-%m-%d %H:%M:%S")
         }
 
@@ -332,29 +382,30 @@ class MockDatabase:
         ]
 
         # Venue & Court Manager Data
+        self.total_courts = 6
         self.venues = [
-            {"id": 1, "name": "Current Paddle Club", "courts": 6, "rate": "120 pts/hr", "active": True},
+            {"id": 1, "name": "Current Paddle Club", "courts": self.total_courts, "rate": "120 pts/hr", "active": True},
             {"id": 2, "name": "Quantum Courts", "courts": 8, "rate": "150 pts/hr", "active": False},
             {"id": 3, "name": "Riverside Arena", "courts": 4, "rate": "100 pts/hr", "active": False},
             {"id": 4, "name": "Harbor Sports Center", "courts": 5, "rate": "130 pts/hr", "active": False}
         ]
 
         self.time_slots = ["08:00 AM", "10:00 AM", "12:00 PM", "02:00 PM", "04:00 PM", "06:00 PM"]
-        self.courts = ["Court 1", "Court 2", "Court 3", "Court 4", "Court 5"]
+        self.courts = ["Court 1", "Court 2", "Court 3", "Court 4", "Court 5", "Court 6"]
 
         self.court_grid = {
-            "08:00 AM": {"Court 1": "Available", "Court 2": "Booked", "Court 3": "Maintenance", "Court 4": "Available", "Court 5": "Available"},
-            "10:00 AM": {"Court 1": "Booked", "Court 2": "Booked", "Court 3": "Maintenance", "Court 4": "Reserved", "Court 5": "Available"},
-            "12:00 PM": {"Court 1": "Available", "Court 2": "Available", "Court 3": "Booked", "Court 4": "Available", "Court 5": "Booked"},
-            "02:00 PM": {"Court 1": "Available", "Court 2": "Reserved", "Court 3": "Available", "Court 4": "Available", "Court 5": "Available"},
-            "04:00 PM": {"Court 1": "Booked", "Court 2": "Available", "Court 3": "Maintenance", "Court 4": "Available", "Court 5": "Available"},
-            "06:00 PM": {"Court 1": "Available", "Court 2": "Booked", "Court 3": "Booked", "Court 4": "Available", "Court 5": "Available"},
+            "08:00 AM": {"Court 1": "Available", "Court 2": "Booked", "Court 3": "Maintenance", "Court 4": "Available", "Court 5": "Available", "Court 6": "Available"},
+            "10:00 AM": {"Court 1": "Booked", "Court 2": "Booked", "Court 3": "Maintenance", "Court 4": "Reserved", "Court 5": "Available", "Court 6": "Available"},
+            "12:00 PM": {"Court 1": "Available", "Court 2": "Available", "Court 3": "Booked", "Court 4": "Available", "Court 5": "Booked", "Court 6": "Available"},
+            "02:00 PM": {"Court 1": "Available", "Court 2": "Reserved", "Court 3": "Available", "Court 4": "Available", "Court 5": "Available", "Court 6": "Available"},
+            "04:00 PM": {"Court 1": "Booked", "Court 2": "Available", "Court 3": "Maintenance", "Court 4": "Available", "Court 5": "Available", "Court 6": "Available"},
+            "06:00 PM": {"Court 1": "Available", "Court 2": "Booked", "Court 3": "Booked", "Court 4": "Available", "Court 5": "Available", "Court 6": "Available"},
         }
 
-        # Moderation Data
+        # Moderation Data (Clean, straightforward report queue)
         self.reported_players = [
-            {"id": "REP-801", "player_id": "USR-9311", "player_name": "Mabelle Kimball", "reporter": "USR-9982", "reason": "Toxic language in lobby chat & stall tactics", "severity": "High", "date": "Today, 19:40", "status": "Pending Action"},
-            {"id": "REP-802", "player_id": "USR-9804", "player_name": "Darnell Castro", "reporter": "USR-9402", "reason": "Unannounced match rage quit", "severity": "Medium", "date": "Yesterday, 21:15", "status": "Under Review"},
+            {"id": "REP-801", "player_id": "USR-9311", "player_name": "Mabelle Kimball", "reporter": "USR-9982 (Sarah)", "reason": "Unsportsmanlike conduct and delaying court rotation", "severity": "High", "date": "Today, 19:40", "status": "Pending Action"},
+            {"id": "REP-802", "player_id": "USR-9804", "player_name": "Darnell Castro", "reporter": "USR-9402 (Mark)", "reason": "No-show for reserved match slot", "severity": "Medium", "date": "Yesterday, 21:15", "status": "Pending Action"},
         ]
 
         self.chat_logs = {
@@ -364,14 +415,49 @@ class MockDatabase:
             ]
         }
 
+        # Event & Announcement Posts (Surfaced to player dashboards & admin)
+        self.event_posts = [
+            EventPost(
+                id="EVT-101",
+                title="Autumn Open Championship 2026",
+                event_type="Tournament",
+                date="Nov 15, 2026",
+                description="Annual club tournament with DUPR division brackets and a $5,000 prize pool. Registration is open for Singles and Doubles.",
+                image_url="https://images.unsplash.com/photo-1599474924187-334a4ae5bd3c?auto=format&fit=crop&w=800&q=80",
+                author="Karl Alegrado"
+            ),
+            EventPost(
+                id="EVT-102",
+                title="Weekly Saturday Open Play & Social Mixer",
+                event_type="Open Play Day",
+                date="Every Saturday, 8:00 AM - 12:00 PM",
+                description="All available courts open for friendly rotation matches and paddle king-of-the-court. New players welcome!",
+                image_url="https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?auto=format&fit=crop&w=800&q=80",
+                author="Karl Alegrado"
+            ),
+            EventPost(
+                id="EVT-103",
+                title="Weekday Free Paddle Rental Promo",
+                event_type="Promo",
+                date="Nov 01 - Nov 07, 2026",
+                description="Book 2 or more hours on any weekday afternoon (1 PM - 5 PM) and get up to 2 carbon pro paddles free for your game.",
+                image_url="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=800&q=80",
+                author="Karl Alegrado"
+            ),
+            EventPost(
+                id="EVT-104",
+                title="Court 3 Morning Maintenance Notice",
+                event_type="Announcement",
+                date="Tomorrow, 07:00 AM - 09:00 AM",
+                description="Court 3 will be offline briefly for surface cleaning and net tension check. All other courts operate normally.",
+                image_url="",
+                author="Karl Alegrado"
+            )
+        ]
+
         self.tournaments = [
             {"id": "EVT-101", "title": "Autumn Open 2026", "venue": "Current Paddle Club", "date": "Nov 15, 2026", "status": "Published", "tag": "TOURNAMENT"},
         ]
-
-        self.recipe_settings = {
-            "recognition": 85, "engagement": 72, "competition": 90,
-            "improvement": 68, "play": 95, "experience": 88
-        }
 
         self.audit_logs = [
             {"timestamp": "Today, 20:00:00", "admin": "Karl Alegrado", "action": "Initialized Open Play Platform Engine", "ip": "192.168.1.45"}
@@ -396,116 +482,9 @@ class MockDatabase:
     # SEED DATA INITIALIZER
     # --------------------------------------------------------------------------
     def _seed_open_play_data(self):
-        """Populates realistic initial Open Play sessions for demonstration."""
-        now = datetime.now()
-        today_str = now.strftime("%Y-%m-%d")
+        """No-op: Open Play module disabled."""
+        pass
 
-        # Session 1: Active Session with Live Court Rotation
-        s1 = OpenPlaySession(
-            id="SESS-101",
-            title="Prime Evening Open Play",
-            date=today_str,
-            start_time="06:00 PM",
-            end_time="09:00 PM",
-            court_count=2,
-            max_players=12,
-            status="active"
-        )
-        self.open_play_sessions[s1.id] = s1
-        self.session_participants[s1.id] = []
-        self.session_games[s1.id] = []
-        self.past_combinations[s1.id] = set()
-
-        # Add Confirmed & Paid Players to Session 1
-        p_seeds = [
-            ("USR-9982", "Sarah Jenkins", 1942, "paid", "online", "receipt_usr9982.jpg", 1),
-            ("USR-9712", "Grace Santos", 2010, "paid", "gcash", "receipt_usr9712.png", 1),
-            ("USR-9921", "Karl Alegrado", 1835, "paid", "cash", None, 1),
-            ("USR-9511", "Vaughn Hancock", 1550, "paid", "gcash", "receipt_usr9511.jpg", 1),
-            ("USR-9804", "Darnell Castro", 1690, "paid", "online", "receipt_usr9804.jpg", 0),
-            ("USR-9201", "Leo Valdes", 1620, "paid", "cash", None, 0),
-            ("USR-9110", "Elmo Villanueva", 1880, "paid", "gcash", "receipt_usr9110.png", 0),
-            ("USR-9004", "Tina Laurel", 1490, "paid", "online", "receipt_usr9004.jpg", 0),
-            ("USR-9402", "Mark Rivera", 1210, "pending", "gcash", "receipt_usr9402_mock.jpg", 0),  # Uploaded receipt pending review
-            ("USR-8910", "Rico Solis", 1710, "pending", "online", None, 0),  # Pending payment, deadline counting down
-        ]
-
-        part_counter = 501
-        for pid, pname, elo, pstatus, pmethod, receipt, gcount in p_seeds:
-            p_obj = SessionParticipant(
-                id=f"PART-{part_counter}",
-                session_id=s1.id,
-                player_id=pid,
-                player_name=pname,
-                elo=elo,
-                joined_at=now - timedelta(hours=2),
-                payment_method=pmethod,
-                payment_status=pstatus,
-                receipt=receipt,
-                confirmed_at=now - timedelta(hours=1.5) if pstatus == "paid" else None
-            )
-            p_obj.games_played = gcount
-            self.session_participants[s1.id].append(p_obj)
-            part_counter += 1
-
-        # Seed Active Court Game for Session 1
-        conf_parts = [p for p in self.session_participants[s1.id] if p.payment_status == "paid"]
-        # Players 0-3 playing on Court 1
-        for p in conf_parts[:4]:
-            p.rotation_status = "playing"
-
-        g1 = Game(
-            id="GAME-701",
-            session_id=s1.id,
-            court_number=1,
-            team_a=[conf_parts[0], conf_parts[3]],  # Sarah (1942) + Vaughn (1550) = 3492
-            team_b=[conf_parts[1], conf_parts[2]],  # Grace (2010) + Karl (1835) = 3845
-            status="in_progress"
-        )
-        self.session_games[s1.id].append(g1)
-
-        # Session 2: Upcoming Session with Pending Payment Approvals & Receipts
-        s2 = OpenPlaySession(
-            id="SESS-102",
-            title="Weekend DUPR Challenge Open Play",
-            date=(now + timedelta(days=2)).strftime("%Y-%m-%d"),
-            start_time="09:00 AM",
-            end_time="12:00 PM",
-            court_count=3,
-            max_players=16,
-            status="upcoming"
-        )
-        self.open_play_sessions[s2.id] = s2
-        self.session_participants[s2.id] = []
-        self.session_games[s2.id] = []
-        self.past_combinations[s2.id] = set()
-
-        # Add participants to Session 2 (Some with receipts to review, one expired)
-        s2_seeds = [
-            ("USR-9982", "Sarah Jenkins", 1942, "paid", "online", "receipt_sarah.png", True),
-            ("USR-9712", "Grace Santos", 2010, "pending", "gcash", "receipt_grace_gcash.jpg", False), # Green icon receipt review!
-            ("USR-9804", "Darnell Castro", 1690, "pending", "online", "receipt_darnell_online.png", False), # Green icon receipt review!
-            ("USR-9402", "Mark Rivera", 1210, "pending", "cash", None, False),
-            ("USR-9650", "Jaye Antonio", 1420, "expired", "online", None, False), # 6-hour deadline expired
-        ]
-
-        for pid, pname, elo, pstatus, pmethod, receipt, is_conf in s2_seeds:
-            # For expired seed, set joined_at 7 hours ago
-            joined_dt = now - timedelta(hours=7) if pstatus == "expired" else now - timedelta(hours=1)
-            p_obj = SessionParticipant(
-                id=f"PART-{part_counter}",
-                session_id=s2.id,
-                player_id=pid,
-                player_name=pname,
-                elo=elo,
-                joined_at=joined_dt,
-                payment_method=pmethod,
-                payment_status=pstatus,
-                receipt=receipt,
-                confirmed_at=now if is_conf else None
-            )
-            self.session_participants[s2.id].append(p_obj)
-            part_counter += 1
 
     # --------------------------------------------------------------------------
     # USER & PLAYER LOGIC
@@ -518,6 +497,28 @@ class MockDatabase:
             if user.username == username:
                 return user
         return None
+
+    def update_admin_profile(self, user_id, name=None, role=None):
+        """Updates admin display name and/or role title."""
+        user = self.get_user_by_id(user_id)
+        if not user:
+            return False, "User not found."
+        old_name = user.name
+        if name and name.strip():
+            user.name = name.strip()
+        if role and role.strip():
+            user.role = role.strip()
+        self.add_audit_log(f"Updated admin profile info for {user.username} (Name: '{user.name}', Role: '{user.role}')", user.name)
+        return True, "Profile details updated successfully."
+
+    def update_admin_avatar(self, user_id, avatar_url):
+        """Updates admin profile picture URL."""
+        user = self.get_user_by_id(user_id)
+        if not user:
+            return False, "User not found."
+        user.avatar_url = avatar_url.strip()
+        self.add_audit_log(f"Updated profile photo for administrator {user.name}", user.name)
+        return True, "Profile photo updated successfully."
 
     def update_player_status(self, player_id, new_status):
         for p in self.players:
@@ -541,6 +542,86 @@ class MockDatabase:
             self.court_grid[time_slot][court] = statuses[next_idx]
             return self.court_grid[time_slot][court]
         return None
+
+    def set_total_courts(self, count, admin="Karl Alegrado"):
+        """Sets the venue court count and synchronizes court listings."""
+        try:
+            count = max(1, min(20, int(count)))
+        except (ValueError, TypeError):
+            count = 6
+        
+        self.total_courts = count
+        if self.venues:
+            self.venues[0]["courts"] = count
+        
+        self.courts = [f"Court {i}" for i in range(1, count + 1)]
+        global BOOKING_COURTS
+        BOOKING_COURTS = [f"Court {i}" for i in range(1, count + 1)]
+        
+        self.add_audit_log(f"Updated venue court capacity to {count} courts", admin)
+        return True, count
+
+    def get_event_posts(self):
+        """Returns all published events sorted by newest first."""
+        return self.event_posts
+
+    def create_event_post(self, title, event_type="Announcement", date=None, description="", image_url="", author="Karl Alegrado"):
+        """Creates a new event/announcement post visible to players and admins."""
+        existing_ids = {p.id for p in self.event_posts}
+        counter = 101 + len(self.event_posts)
+        while f"EVT-{counter}" in existing_ids:
+            counter += 1
+        
+        post_id = f"EVT-{counter}"
+        new_post = EventPost(
+            id=post_id,
+            title=title.strip(),
+            event_type=event_type,
+            date=date.strip() if date else datetime.now().strftime("%b %d, %Y"),
+            description=description.strip(),
+            image_url=image_url.strip() if image_url else "",
+            author=author
+        )
+        self.event_posts.insert(0, new_post)
+        self.add_audit_log(f"Published new {event_type} post: '{new_post.title}'", author)
+        return new_post
+
+    def delete_event_post(self, post_id, admin="Karl Alegrado"):
+        """Deletes an event post by ID."""
+        target = next((p for p in self.event_posts if p.id == post_id), None)
+        if target:
+            self.event_posts.remove(target)
+            self.add_audit_log(f"Removed event post '{target.title}' ({post_id})", admin)
+            return True
+        return False
+
+    def dismiss_report(self, report_id, admin="Karl Alegrado"):
+        """Dismisses a player moderation report (e.g. false alarm / resolved)."""
+        target = next((r for r in self.reported_players if r["id"] == report_id), None)
+        if target:
+            self.reported_players.remove(target)
+            self.add_audit_log(f"Dismissed player report {report_id} against {target['player_name']}", admin)
+            return True, f"Report {report_id} has been dismissed."
+        return False, "Report not found."
+
+    def warn_and_dismiss_report(self, report_id, admin="Karl Alegrado"):
+        """Issues an official conduct warning to player and clears report."""
+        target = next((r for r in self.reported_players if r["id"] == report_id), None)
+        if target:
+            player_name = target["player_name"]
+            player_id = target.get("player_id")
+            # Update player report counter if in players list
+            for p in self.players:
+                if p["id"] == player_id or p["name"] == player_name:
+                    try:
+                        p["reports"] = int(p.get("reports", 0)) + 1
+                    except (ValueError, TypeError):
+                        p["reports"] = 1
+                    break
+            self.reported_players.remove(target)
+            self.add_audit_log(f"Issued formal conduct warning to {player_name} and closed report {report_id}", admin)
+            return True, f"Conduct warning issued to {player_name}. Report cleared."
+        return False, "Report not found."
 
     def add_audit_log(self, action, admin="Karl Alegrado"):
         now_str = datetime.now().strftime("%A, %H:%M:%S")
@@ -904,16 +985,16 @@ class MockDatabase:
         """Seeds sample direct court bookings for demonstration."""
         today_str = datetime.now().strftime("%Y-%m-%d")
         seeds = [
-            (today_str, "Court 1", "09:00 AM", "Juan Dela Cruz", "paid"),
-            (today_str, "Court 1", "10:00 AM", "Maria Santos", "unpaid"),
-            (today_str, "Court 3", "02:00 PM", "Pedro Penduko", "paid"),
-            (today_str, "Court 2", "04:00 PM", "Ana Reyes", "unpaid"),
+            (today_str, "Court 1", "09:00 AM", "Juan Dela Cruz", "paid", True, 2),
+            (today_str, "Court 1", "10:00 AM", "Maria Santos", "unpaid", False, 0),
+            (today_str, "Court 3", "02:00 PM", "Pedro Penduko", "paid", True, 1),
+            (today_str, "Court 2", "04:00 PM", "Ana Reyes", "unpaid", False, 0),
         ]
         booking_counter = 1001
-        for d, c, t, name, status in seeds:
+        for d, c, t, name, status, rent_p, p_cnt in seeds:
             b_id = f"BK-{booking_counter}"
             self.direct_bookings[(d, c, t)] = DirectBooking(
-                id=b_id, date=d, court=c, time_slot=t, customer_name=name, payment_status=status
+                id=b_id, date=d, court=c, time_slot=t, customer_name=name, payment_status=status, rent_paddle=rent_p, paddle_count=p_cnt
             )
             booking_counter += 1
 
@@ -948,6 +1029,8 @@ class MockDatabase:
                         "time_range": f"{open_play_match.start_time} - {open_play_match.end_time}",
                         "customer_name": None,
                         "payment_status": None,
+                        "rent_paddle": False,
+                        "paddle_count": 0,
                         "booking_id": None
                     }
                 else:
@@ -958,6 +1041,11 @@ class MockDatabase:
                             "status": "booked",
                             "customer_name": b.customer_name,
                             "payment_status": b.payment_status,
+                            "rent_paddle": getattr(b, 'rent_paddle', False),
+                            "paddle_count": getattr(b, 'paddle_count', 0),
+                            "duration_hours": getattr(b, 'duration_hours', 1),
+                            "group_id": getattr(b, 'group_id', b.id),
+                            "start_time_slot": getattr(b, 'start_time_slot', b.time_slot),
                             "booking_id": b.id,
                             "title": None,
                             "time_range": None
@@ -967,10 +1055,16 @@ class MockDatabase:
                             "status": "vacant",
                             "customer_name": None,
                             "payment_status": None,
+                            "rent_paddle": False,
+                            "paddle_count": 0,
+                            "duration_hours": 1,
+                            "group_id": None,
+                            "start_time_slot": time_slot,
                             "booking_id": None,
                             "title": None,
                             "time_range": None
                         }
+
 
         return {
             "date": date,
@@ -991,6 +1085,10 @@ class MockDatabase:
                 "status": "vacant",
                 "customer_name": None,
                 "payment_status": None,
+                "rent_paddle": False,
+                "paddle_count": 0,
+                "duration_hours": 1,
+                "group_id": None,
                 "booking_id": None,
                 "title": None,
                 "time_range": None
@@ -1001,48 +1099,105 @@ class MockDatabase:
             })
         return grid
 
-    def save_direct_booking(self, date, court, time_slot, customer_name, payment_status="paid"):
-        """Saves or updates a direct court booking after verifying no Open Play overlap."""
+    def save_direct_booking(self, date, court, time_slot, customer_name, payment_status="paid", rent_paddle=False, paddle_count=0, duration_hours=1):
+        """Saves or updates a direct court booking (supporting multi-hour bookings) after verifying no conflicts."""
         if not customer_name or not customer_name.strip():
             return False, "Customer / Player name is required."
 
+        try:
+            duration_hours = max(1, int(duration_hours))
+        except (ValueError, TypeError):
+            duration_hours = 1
+
+        # Determine target consecutive time slots
+        if time_slot in BOOKING_TIME_SLOTS:
+            start_idx = BOOKING_TIME_SLOTS.index(time_slot)
+            end_idx = start_idx + duration_hours
+            if end_idx > len(BOOKING_TIME_SLOTS):
+                return False, f"Cannot book {duration_hours} hours starting at {time_slot}: Exceeds available daily schedule."
+            slots_to_book = BOOKING_TIME_SLOTS[start_idx:end_idx]
+        else:
+            slots_to_book = [time_slot]
+
         court_num = parse_court_number(court)
-        slot_start = parse_time_to_minutes(time_slot)
-        slot_end = slot_start + 60
 
-        # Check Open Play conflict
-        for s in self.open_play_sessions.values():
-            if s.date == date and court_num <= s.court_count:
-                s_start = parse_time_to_minutes(s.start_time)
-                s_end = parse_time_to_minutes(s.end_time)
-                if max(slot_start, s_start) < min(slot_end, s_end):
-                    return False, f"Cannot book slot: Reserved for Open Play session '{s.title}' ({s.start_time} - {s.end_time})."
+        # Check existing booking for this slot to see if we are updating a current booking group
+        primary_key = (date, court, time_slot)
+        existing_group = None
+        if primary_key in self.direct_bookings:
+            existing_group = getattr(self.direct_bookings[primary_key], 'group_id', None)
 
-        key = (date, court, time_slot)
+        # 1. Conflict Check across ALL target slots
+        for target_slot in slots_to_book:
+            slot_start = parse_time_to_minutes(target_slot)
+            slot_end = slot_start + 60
+
+            # Check Open Play conflict
+            for s in self.open_play_sessions.values():
+                if s.date == date and court_num <= s.court_count:
+                    s_start = parse_time_to_minutes(s.start_time)
+                    s_end = parse_time_to_minutes(s.end_time)
+                    if max(slot_start, s_start) < min(slot_end, s_end):
+                        return False, f"Cannot book slot ({target_slot}): Reserved for Open Play session '{s.title}' ({s.start_time} - {s.end_time})."
+
+            # Check direct booking conflict (allow replacing slots that belong to the SAME group_id)
+            target_key = (date, court, target_slot)
+            if target_key in self.direct_bookings:
+                existing_b = self.direct_bookings[target_key]
+                if not existing_group or getattr(existing_b, 'group_id', None) != existing_group:
+                    return False, f"Cannot book {duration_hours} hours: Slot at {target_slot} is already booked by '{existing_b.customer_name}'."
+
+        # If updating, clean up any previous slots from the old group that are no longer in slots_to_book
+        if existing_group:
+            keys_to_remove = [k for k, b in self.direct_bookings.items() if getattr(b, 'group_id', None) == existing_group]
+            for k in keys_to_remove:
+                del self.direct_bookings[k]
+
         clean_name = customer_name.strip()
         clean_status = payment_status.lower()
+        rent_paddle = bool(rent_paddle)
+        try:
+            paddle_count = int(paddle_count) if rent_paddle else 0
+        except (ValueError, TypeError):
+            paddle_count = 1 if rent_paddle else 0
 
-        if key in self.direct_bookings:
-            b = self.direct_bookings[key]
-            b.customer_name = clean_name
-            b.payment_status = clean_status
-            action = f"Updated direct booking for '{b.customer_name}' on {court} at {time_slot} ({b.payment_status.upper()})"
-        else:
+        group_id = f"GRP-{date}-{court.replace(' ', '')}-{parse_time_to_minutes(time_slot)}"
+        paddle_info = f" (+{paddle_count} Paddle rental)" if (rent_paddle and paddle_count > 0) else ""
+        dur_info = f" for {duration_hours} hour(s) ({slots_to_book[0]} - {slots_to_book[-1]})" if duration_hours > 1 else ""
+
+        # Save DirectBooking records for each consecutive slot
+        for target_slot in slots_to_book:
             b_id = f"BK-{len(self.direct_bookings) + 1001}"
-            b = DirectBooking(id=b_id, date=date, court=court, time_slot=time_slot, customer_name=clean_name, payment_status=clean_status)
-            self.direct_bookings[key] = b
-            action = f"Created direct booking for '{b.customer_name}' on {court} at {time_slot} ({b.payment_status.upper()})"
+            b = DirectBooking(
+                id=b_id, group_id=group_id, date=date, court=court, time_slot=target_slot,
+                start_time_slot=time_slot, customer_name=clean_name, payment_status=clean_status,
+                rent_paddle=rent_paddle, paddle_count=paddle_count, duration_hours=duration_hours
+            )
+            self.direct_bookings[(date, court, target_slot)] = b
 
+        action = f"Saved direct booking for '{clean_name}' on {court} starting at {time_slot}{dur_info} ({clean_status.upper()}){paddle_info}"
         self.add_audit_log(action)
-        return True, f"Booking for '{clean_name}' on {court} at {time_slot} saved successfully!"
+        return True, f"Booking for '{clean_name}' on {court} saved successfully ({duration_hours} hr{'s' if duration_hours > 1 else ''})!"
+
 
     def clear_direct_booking(self, date, court, time_slot):
-        """Clears/cancels a direct booking for a specific slot."""
+        """Clears/cancels a direct booking for a specific slot and any linked multi-hour slots."""
         key = (date, court, time_slot)
         if key in self.direct_bookings:
-            b = self.direct_bookings.pop(key)
-            self.add_audit_log(f"Cancelled direct booking for '{b.customer_name}' on {court} at {time_slot}")
-            return True, f"Booking for '{b.customer_name}' on {court} at {time_slot} cleared."
+            target_b = self.direct_bookings[key]
+            group_id = getattr(target_b, 'group_id', None)
+
+            if group_id:
+                keys_to_clear = [k for k, b in self.direct_bookings.items() if getattr(b, 'group_id', None) == group_id]
+            else:
+                keys_to_clear = [key]
+
+            for k in keys_to_clear:
+                if k in self.direct_bookings:
+                    del self.direct_bookings[k]
+
+            self.add_audit_log(f"Cancelled direct booking for '{target_b.customer_name}' on {court} at {time_slot}")
+            return True, f"Booking for '{target_b.customer_name}' on {court} cleared."
         return False, "No active booking found for this slot."
 
     def check_open_play_conflict(self, date, start_time, end_time, court_count):

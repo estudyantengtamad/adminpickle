@@ -9,27 +9,21 @@ settings_bp = Blueprint('settings', __name__)
 def settings_view():
     return render_template(
         'settings.html',
-        recipe=db.recipe_settings,
+        total_courts=db.total_courts,
         audit_logs=db.audit_logs
     )
 
-@settings_bp.route('/api/settings/save', methods=['POST'])
+@settings_bp.route('/api/settings/courts', methods=['POST'])
 @login_required
-def save_settings():
+def update_courts():
     data = request.get_json() or {}
-
-    db.recipe_settings['recognition'] = int(data.get('recognition', db.recipe_settings['recognition']))
-    db.recipe_settings['engagement'] = int(data.get('engagement', db.recipe_settings['engagement']))
-    db.recipe_settings['competition'] = int(data.get('competition', db.recipe_settings['competition']))
-    db.recipe_settings['improvement'] = int(data.get('improvement', db.recipe_settings['improvement']))
-    db.recipe_settings['play'] = int(data.get('play', db.recipe_settings['play']))
-    db.recipe_settings['experience'] = int(data.get('experience', db.recipe_settings['experience']))
-
-    summary = (
-        f"Saved RECIPE Framework Sliders: R:{db.recipe_settings['recognition']} "
-        f"E:{db.recipe_settings['engagement']} C:{db.recipe_settings['competition']} "
-        f"I:{db.recipe_settings['improvement']} P:{db.recipe_settings['play']} Ex:{db.recipe_settings['experience']}"
-    )
-    db.add_audit_log(summary, current_user.name)
-
-    return jsonify({"success": True, "message": "Platform RECIPE parameters updated successfully and audit log generated."})
+    court_count = data.get('court_count')
+    if not court_count:
+        return jsonify({"success": False, "message": "Court count is required."}), 400
+    
+    success, new_count = db.set_total_courts(court_count, current_user.name)
+    return jsonify({
+        "success": True,
+        "court_count": new_count,
+        "message": f"Venue court capacity successfully updated to {new_count} courts."
+    })
