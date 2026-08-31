@@ -5,18 +5,9 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from flask import Flask, render_template
-try:
-    from flask_login import LoginManager
-except ImportError:
-    class DummyLoginManager:
-        login_view = ''
-        login_message = ''
-        login_message_category = ''
-        def init_app(self, app): pass
-        def user_loader(self, f): return f
-    LoginManager = DummyLoginManager
+from flask_login import LoginManager
 from backend.config import Config
-from backend.models.mock_db import db
+from backend.models.mock_db import db, sqla
 
 def create_app():
     # Resolve absolute paths for frontend templates & static assets
@@ -26,6 +17,9 @@ def create_app():
 
     app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
     app.config.from_object(Config)
+
+    # Initialize Database Connection
+    sqla.init_app(app)
 
     # Configure upload folder for profile pictures and assets
     upload_dir = os.path.join(static_dir, 'uploads')

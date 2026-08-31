@@ -55,7 +55,7 @@
               <th class="py-3 px-3">User ID</th>
               <th class="py-3 px-3">Player Name</th>
               <th class="py-3 px-3">Elo Rating</th>
-              <th class="py-3 px-3">Rank Tier</th>
+              <th class="py-3 px-3">Skill Level / Rank</th>
               <th class="py-3 px-3">Match Rate</th>
               <th class="py-3 px-3 text-right">Status</th>
             </tr>
@@ -73,13 +73,12 @@
               <td class="py-3.5 px-3 font-bold text-indigo-600 hover:underline">{{ player.name }}</td>
               <td id="elo-{{ player.id }}" class="py-3.5 px-3 text-slate-800 font-semibold">{{ player.elo }}</td>
               <td class="py-3.5 px-3">
-                <span class="px-2 py-0.5 rounded text-[11px] font-bold 
-                  {% if player.tier == 'Diamond' %} bg-cyan-100 text-cyan-800 
-                  {% elif player.tier == 'Platinum' %} bg-purple-100 text-purple-800 
-                  {% elif player.tier == 'Gold' %} bg-amber-100 text-amber-800 
-                  {% elif player.tier == 'Silver' %} bg-slate-200 text-slate-800 
-                  {% else %} bg-orange-100 text-orange-800 {% endif %}">
-                  ★ {{ player.tier }}
+                <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold 
+                  {% if 'DUPR' in player.tier or 'Advanced' in player.tier %} bg-purple-100 text-purple-800 
+                  {% elif 'Intermediate' in player.tier %} bg-blue-100 text-blue-800 
+                  {% elif 'Beginner' in player.tier %} bg-emerald-100 text-emerald-800 
+                  {% else %} bg-slate-100 text-slate-800 {% endif %}">
+                  {{ player.tier }}
                 </span>
               </td>
               <td class="py-3.5 px-3 text-slate-600">{{ player.win_rate }}</td>
