@@ -1,4 +1,14 @@
 {
   "venvPath": ".",
-  "venv": ".venv"
+  "venv": ".venv",
+  "include": [
+    "backend",
+    "*.py"
+  ],
+  "exclude": [
+    "frontend",
+    ".venv",
+    "scratch",
+    "**/__pycache__"
+  ]
 }

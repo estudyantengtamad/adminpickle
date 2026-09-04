@@ -234,6 +234,12 @@ class ConfirmedBooking(sqla.Model):
         self.rent_paddle = bool(rent_paddle)
         self.paddle_count = int(paddle_count) if rent_paddle else 0
 
+    @property
+    def payment_status(self):
+        if self.status and self.status.lower() in ("unpaid", "pending"):
+            return "unpaid"
+        return "paid"
+
     def to_dict(self):
         return {
             "id": self.id,
@@ -247,6 +253,7 @@ class ConfirmedBooking(sqla.Model):
             "payment_method": self.payment_method,
             "staff_name": self.staff_name,
             "status": self.status,
+            "payment_status": self.payment_status,
             "flow_type": self.flow_type,
             "rent_paddle": self.rent_paddle,
             "paddle_count": self.paddle_count,
@@ -580,6 +587,19 @@ BOOKING_TIME_SLOTS = [
 BOOKING_COURTS = ["Court 1", "Court 2", "Court 3", "Court 4", "Court 5", "Court 6"]
 
 
+def normalize_date_str(d_str):
+    if not d_str:
+        return ""
+    d_str = str(d_str).strip()
+    for fmt in ("%Y-%m-%d", "%B %d, %Y", "%B %d %Y", "%b %d, %Y", "%b %d %Y", "%Y/%m/%d", "%m/%d/%Y", "%d/%m/%Y"):
+        try:
+            dt = datetime.strptime(d_str, fmt)
+            return dt.strftime("%Y-%m-%d")
+        except ValueError:
+            pass
+    return d_str
+
+
 def parse_time_to_minutes(time_str):
     if not time_str:
         return 0
@@ -598,6 +618,28 @@ def parse_time_to_minutes(time_str):
             return dt.hour * 60 + dt.minute
         except ValueError:
             return 0
+
+
+def normalize_time_slot(time_str):
+    if not time_str:
+        return ""
+    t_str = str(time_str).strip().upper()
+    if " - " in t_str:
+        t_str = t_str.split(" - ")[0].strip()
+    if t_str.endswith("AM") and not t_str.endswith(" AM"):
+        t_str = t_str[:-2] + " AM"
+    elif t_str.endswith("PM") and not t_str.endswith(" PM"):
+        t_str = t_str[:-2] + " PM"
+
+    try:
+        dt = datetime.strptime(t_str, "%I:%M %p")
+        return dt.strftime("%I:%M %p")
+    except ValueError:
+        try:
+            dt = datetime.strptime(t_str, "%H:%M")
+            return dt.strftime("%I:%M %p")
+        except ValueError:
+            return time_str.strip()
 
 
 # ==============================================================================
@@ -873,18 +915,85 @@ class DatabaseManager:
     # DIGITAL BOOKING SHEET & CONFIRMED BOOKINGS
     # --------------------------------------------------------------------------
     def get_booking_sheet_matrix(self, date):
+        norm_target_date = normalize_date_str(date)
         matrix = {}
         for slot in BOOKING_TIME_SLOTS:
-            matrix[slot] = {court: None for court in self.courts}
+            matrix[slot] = {court: {"status": "vacant"} for court in self.courts}
 
         try:
-            bookings = ConfirmedBooking.query.filter_by(date=date).all()
-            for b in bookings:
-                c_clean = b.court_no.split(" (")[0] if "(" in b.court_no else b.court_no
-                if b.time in matrix and c_clean in matrix[b.time]:
-                    matrix[b.time][c_clean] = b.to_dict()
-        except Exception:
-            pass
+            # 1. Load Confirmed Bookings for this date
+            all_bookings = ConfirmedBooking.query.all()
+            for b in all_bookings:
+                if normalize_date_str(b.date) != norm_target_date:
+                    continue
+                c_clean = b.court_no.split(" (")[0].strip() if "(" in (b.court_no or "") else (b.court_no or "").strip()
+                if c_clean in self.courts:
+                    # Parse duration in hours
+                    dur_hours = 1
+                    if b.duration:
+                        d_str = str(b.duration).strip()
+                        parts = d_str.split()
+                        if parts and parts[0].isdigit():
+                            dur_hours = max(1, int(parts[0]))
+
+                    norm_time = normalize_time_slot(b.time)
+                    if norm_time in BOOKING_TIME_SLOTS:
+                        start_idx = BOOKING_TIME_SLOTS.index(norm_time)
+                        pay_status = getattr(b, 'payment_status', 'paid')
+                        pay_method = getattr(b, 'payment_method', 'Cash') or 'Cash'
+                        amt_paid = float(getattr(b, 'amount_paid', 0) or 0)
+                        for h in range(dur_hours):
+                            if start_idx + h < len(BOOKING_TIME_SLOTS):
+                                slot_name = BOOKING_TIME_SLOTS[start_idx + h]
+                                matrix[slot_name][c_clean] = {
+                                    "status": "booked",
+                                    "customer_name": b.customer_name or "Booked Player",
+                                    "payment_status": pay_status,
+                                    "payment_method": pay_method,
+                                    "amount_paid": amt_paid,
+                                    "rent_paddle": bool(getattr(b, 'rent_paddle', False)),
+                                    "paddle_count": getattr(b, 'paddle_count', 0) or 0,
+                                    "duration_hours": dur_hours,
+                                    "start_time_slot": norm_time,
+                                    "booking_id": b.id
+                                }
+
+            # 2. Load Open Play Sessions for this date
+            all_sessions = OpenPlaySession.query.all()
+            for s in all_sessions:
+                if normalize_date_str(s.date) != norm_target_date:
+                    continue
+                # Determine which courts are used
+                used_courts = []
+                c_base = s.court_no.split(" (")[0].strip() if "(" in (s.court_no or "") else (s.court_no or "").strip()
+                if c_base in self.courts:
+                    used_courts.append(c_base)
+
+                if s.court_count and s.court_count > 1:
+                    for i in range(1, min(s.court_count + 1, len(self.courts) + 1)):
+                        c_name = f"Court {i}"
+                        if c_name not in used_courts and c_name in self.courts:
+                            used_courts.append(c_name)
+
+                # Determine time range in minutes
+                start_min = parse_time_to_minutes(s.start_time)
+                end_min = parse_time_to_minutes(s.end_time)
+                if end_min <= start_min:
+                    end_min = start_min + 120
+
+                for slot in BOOKING_TIME_SLOTS:
+                    slot_min = parse_time_to_minutes(slot)
+                    if start_min <= slot_min < end_min:
+                        for court in used_courts:
+                            if matrix[slot][court].get("status") == "vacant":
+                                matrix[slot][court] = {
+                                    "status": "open_play",
+                                    "title": s.title or "Open Play",
+                                    "time_range": s.time or "",
+                                    "session_id": s.id
+                                }
+        except Exception as e:
+            print(f"[!] Error building booking matrix: {e}")
 
         return {
             "date": date,
@@ -894,39 +1003,72 @@ class DatabaseManager:
         }
 
     def get_booking_sheet_grid(self, date, court):
-        grid = {slot: None for slot in BOOKING_TIME_SLOTS}
-        try:
-            bookings = ConfirmedBooking.query.filter_by(date=date).all()
-            for b in bookings:
-                c_clean = b.court_no.split(" (")[0] if "(" in b.court_no else b.court_no
-                if c_clean == court and b.time in grid:
-                    grid[b.time] = b.to_dict()
-        except Exception:
-            pass
+        sheet_data = self.get_booking_sheet_matrix(date)
+        grid = {}
+        for slot in BOOKING_TIME_SLOTS:
+            grid[slot] = sheet_data["matrix"][slot].get(court, {"status": "vacant"})
         return grid
 
-    def save_direct_booking(self, date, court, time_slot, customer_name, payment_status="Confirmed", rent_paddle=False, paddle_count=0, duration_hours=1):
+    def save_direct_booking(self, date, court, time_slot, customer_name, payment_status="paid", rent_paddle=False, paddle_count=0, duration_hours=1, payment_method="Cash", amount_paid=None):
         try:
+            norm_date = normalize_date_str(date)
+            norm_time = normalize_time_slot(time_slot)
+            dur_int = max(1, int(duration_hours))
+            pay_status = "paid" if str(payment_status).lower() == "paid" else "unpaid"
+            pay_method = (payment_method or "Cash").strip()
+
+            # Calculate amount paid if not explicitly provided
+            if amount_paid is not None:
+                try:
+                    final_amount = float(amount_paid)
+                except (ValueError, TypeError):
+                    final_amount = 300.0 * dur_int + (50.0 * int(paddle_count) if rent_paddle else 0.0)
+            else:
+                final_amount = 300.0 * dur_int + (50.0 * int(paddle_count) if rent_paddle else 0.0)
+
+            # Check for conflicts
+            matrix_data = self.get_booking_sheet_matrix(date)
+            if norm_time in BOOKING_TIME_SLOTS:
+                start_idx = BOOKING_TIME_SLOTS.index(norm_time)
+                for h in range(dur_int):
+                    if start_idx + h < len(BOOKING_TIME_SLOTS):
+                        chk_slot = BOOKING_TIME_SLOTS[start_idx + h]
+                        cell = matrix_data["matrix"][chk_slot].get(court, {})
+                        if cell.get("status") == "open_play":
+                            return False, f"Cannot book: {court} at {chk_slot} is reserved for Open Play ({cell.get('title')})."
+                        elif cell.get("status") == "booked" and cell.get("start_time_slot") != norm_time:
+                            return False, f"Cannot book: {court} at {chk_slot} is already booked by {cell.get('customer_name')}."
+
+            # Delete any existing booking starting at this slot to support editing/updating
+            existing = ConfirmedBooking.query.all()
+            for eb in existing:
+                if normalize_date_str(eb.date) == norm_date:
+                    c_clean = eb.court_no.split(" (")[0].strip() if "(" in (eb.court_no or "") else (eb.court_no or "").strip()
+                    if c_clean == court and normalize_time_slot(eb.time) == norm_time:
+                        sqla.session.delete(eb)
+                        sqla.session.flush()
+                        break
+
             b_id = f"BK-{int(time.time() * 1000) % 10000}"
             booking = ConfirmedBooking(
                 id=b_id,
                 court="Butuan Ground Zero Pickleball Yard",
                 court_no=court,
                 customer_name=customer_name.strip(),
-                date=date,
-                time=time_slot,
-                duration=f"{duration_hours} hr{'s' if duration_hours > 1 else ''}",
-                amount_paid=300.0 * int(duration_hours),
-                payment_method="GCash",
+                date=norm_date,
+                time=norm_time,
+                duration=f"{dur_int} hr{'s' if dur_int > 1 else ''}",
+                amount_paid=final_amount,
+                payment_method=pay_method,
                 staff_name="Karl Alegrado",
-                status="Confirmed",
+                status="Confirmed" if pay_status == "paid" else "Unpaid",
                 flow_type="direct",
-                rent_paddle=rent_paddle,
-                paddle_count=paddle_count
+                rent_paddle=bool(rent_paddle),
+                paddle_count=int(paddle_count) if rent_paddle else 0
             )
             sqla.session.add(booking)
             sqla.session.commit()
-            self.add_audit_log(f"Saved confirmed booking {b_id} for '{customer_name}' on {court} at {time_slot}")
+            self.add_audit_log(f"Saved confirmed booking {b_id} for '{customer_name}' on {court} at {norm_time} ({pay_method} • ₱{final_amount:,.2f})")
             return True, f"Booking for '{customer_name}' on {court} saved successfully!"
         except Exception as e:
             sqla.session.rollback()
@@ -934,16 +1076,27 @@ class DatabaseManager:
 
     def clear_direct_booking(self, date, court, time_slot):
         try:
-            booking = ConfirmedBooking.query.filter_by(date=date, time=time_slot).first()
-            if booking:
-                c_name = booking.customer_name
-                sqla.session.delete(booking)
+            norm_date = normalize_date_str(date)
+            norm_time = normalize_time_slot(time_slot)
+            bookings = ConfirmedBooking.query.all()
+            target_booking = None
+            for b in bookings:
+                if normalize_date_str(b.date) == norm_date:
+                    c_clean = b.court_no.split(" (")[0].strip() if "(" in (b.court_no or "") else (b.court_no or "").strip()
+                    if c_clean == court and normalize_time_slot(b.time) == norm_time:
+                        target_booking = b
+                        break
+
+            if target_booking:
+                c_name = target_booking.customer_name
+                sqla.session.delete(target_booking)
                 sqla.session.commit()
-                self.add_audit_log(f"Cancelled booking for '{c_name}' on {court} at {time_slot}")
+                self.add_audit_log(f"Cancelled booking for '{c_name}' on {court} at {norm_time}")
                 return True, f"Booking for '{c_name}' cleared."
-        except Exception:
+            return False, "No active booking found for this slot."
+        except Exception as e:
             sqla.session.rollback()
-        return False, "No active booking found for this slot."
+            return False, f"Failed to clear booking: {str(e)}"
 
     # --------------------------------------------------------------------------
     # OPEN PLAY SESSIONS & FAIR ROTATIONS

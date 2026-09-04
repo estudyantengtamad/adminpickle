@@ -63,11 +63,14 @@
           <tbody id="playerTableBody" class="divide-y divide-slate-100 font-medium">
             {% for player in players %}
             <tr id="row-{{ player.id }}" 
-                onclick='selectPlayer({{ player | tojson }})'
                 data-name="{{ player.name }}"
                 data-id="{{ player.id }}"
                 data-tier="{{ player.tier }}"
                 data-status="{{ player.status }}"
+                data-elo="{{ player.elo }}"
+                data-win-rate="{{ player.win_rate }}"
+                data-matches="{{ player.matches }}"
+                data-notes="{{ player.notes | default('') }}"
                 class="player-row cursor-pointer hover:bg-slate-50 transition-colors">
               <td class="py-3.5 px-3 font-mono font-bold text-slate-900">{{ player.id }}</td>
               <td class="py-3.5 px-3 font-bold text-indigo-600 hover:underline">{{ player.name }}</td>
@@ -179,11 +182,27 @@
 
 {% block scripts %}
 <script>
-  // Select first player on initial load
   document.addEventListener('DOMContentLoaded', () => {
-    {% if players and players|length > 0 %}
-      selectPlayer({{ players[0] | tojson }});
-    {% endif %}
+    const rows = document.querySelectorAll('.player-row');
+    rows.forEach(row => {
+      row.addEventListener('click', () => {
+        selectPlayer({
+          id: row.dataset.id,
+          name: row.dataset.name,
+          elo: row.dataset.elo,
+          tier: row.dataset.tier,
+          win_rate: row.dataset.winRate,
+          matches: row.dataset.matches,
+          status: row.dataset.status,
+          notes: row.dataset.notes
+        });
+      });
+    });
+
+    // Select first player on initial load
+    if (rows.length > 0) {
+      rows[0].click();
+    }
   });
 </script>
 {% endblock %}

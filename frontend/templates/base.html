@@ -1,24 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="theme-color" content="#4F46E5">
   <title>{% block title %}Dashboard{% endblock %} - Pickle Legends Admin Platform</title>
-  
+
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-  
+
   <!-- Google Fonts: Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <!-- Custom Styling -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
+
 <body class="bg-slate-50 text-slate-900 font-sans antialiased min-h-screen flex flex-col">
 
   {% if current_user.is_authenticated %}
@@ -27,69 +34,84 @@
     <div id="sidebarOverlay" class="fixed inset-0 bg-slate-900/40 z-20 hidden md:hidden"></div>
 
     <!-- Navigation Sidebar -->
-    <aside id="sidebar" class="fixed md:static inset-y-0 left-0 w-64 bg-white border-r border-slate-200 z-30 transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col justify-between flex-shrink-0 shadow-2xl md:shadow-none">
+    <aside id="sidebar"
+      class="fixed md:static inset-y-0 left-0 w-64 bg-white border-r border-slate-200 z-30 transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col justify-between flex-shrink-0 shadow-2xl md:shadow-none">
       <div>
         <!-- Brand / App Header -->
         <div class="h-16 flex items-center justify-between px-6 border-b border-slate-100">
-          <a href="{{ url_for('profile.profile_view') }}" class="flex items-center space-x-3 group" title="View & Edit Admin Profile">
-            <img id="topNavAvatarImg" 
-                 src="{{ current_user.avatar_url }}" 
-                 alt="Admin Avatar" 
-                 class="w-10 h-10 rounded-2xl object-cover border border-slate-200 shadow-md shadow-slate-200/60 flex-shrink-0 group-hover:scale-105 transition-all bg-slate-100">
+          <a href="{{ url_for('profile.profile_view') }}" class="flex items-center space-x-3 group"
+            title="View & Edit Admin Profile">
+            <img id="topNavAvatarImg" src="{{ current_user.avatar_url }}" alt="Admin Avatar"
+              class="w-10 h-10 rounded-2xl object-cover border border-slate-200 shadow-md shadow-slate-200/60 flex-shrink-0 group-hover:scale-105 transition-all bg-slate-100">
             <div class="min-w-0">
-              <span class="font-extrabold text-slate-900 tracking-tight text-base group-hover:text-indigo-600 transition-colors truncate block">Pickle Legends</span>
-              <span class="text-[10px] uppercase font-bold tracking-widest text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">ADMIN</span>
+              <span
+                class="font-extrabold text-slate-900 tracking-tight text-base group-hover:text-indigo-600 transition-colors truncate block">Pickle
+                Legends</span>
+              <span
+                class="text-[10px] uppercase font-bold tracking-widest text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">ADMIN</span>
             </div>
           </a>
         </div>
 
         <!-- Navigation Links -->
         <nav class="mt-6 px-4 space-y-1">
-          <a href="{{ url_for('dashboard.index') }}" 
-             class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-150 {% if request.endpoint == 'dashboard.index' %} bg-indigo-50 text-indigo-600 {% else %} text-slate-600 hover:bg-slate-50 hover:text-slate-900 {% endif %}">
+          <a href="{{ url_for('dashboard.index') }}"
+            class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-150 {% if request.endpoint == 'dashboard.index' %} bg-indigo-50 text-indigo-600 {% else %} text-slate-600 hover:bg-slate-50 hover:text-slate-900 {% endif %}">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
+              </path>
             </svg>
             <span>Dashboard</span>
           </a>
 
-          <a href="{{ url_for('users.users_list') }}" 
-             class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-150 {% if request.endpoint == 'users.users_list' %} bg-indigo-50 text-indigo-600 {% else %} text-slate-600 hover:bg-slate-50 hover:text-slate-900 {% endif %}">
+          <a href="{{ url_for('users.users_list') }}"
+            class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-150 {% if request.endpoint == 'users.users_list' %} bg-indigo-50 text-indigo-600 {% else %} text-slate-600 hover:bg-slate-50 hover:text-slate-900 {% endif %}">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z">
+              </path>
             </svg>
             <span>Users & Players</span>
           </a>
 
-          <a href="{{ url_for('venues.booking_sheet_view') }}" 
-             class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-150 {% if request.endpoint == 'venues.booking_sheet_view' %} bg-indigo-50 text-indigo-600 {% else %} text-slate-600 hover:bg-slate-50 hover:text-slate-900 {% endif %}">
+          <a href="{{ url_for('venues.booking_sheet_view') }}"
+            class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-150 {% if request.endpoint == 'venues.booking_sheet_view' %} bg-indigo-50 text-indigo-600 {% else %} text-slate-600 hover:bg-slate-50 hover:text-slate-900 {% endif %}">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
             </svg>
             <span>Booking Sheet</span>
           </a>
 
-          <a href="{{ url_for('events.events_view') }}" 
-             class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-150 {% if request.endpoint == 'events.events_view' %} bg-indigo-50 text-indigo-600 {% else %} text-slate-600 hover:bg-slate-50 hover:text-slate-900 {% endif %}">
+          <a href="{{ url_for('events.events_view') }}"
+            class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-150 {% if request.endpoint == 'events.events_view' %} bg-indigo-50 text-indigo-600 {% else %} text-slate-600 hover:bg-slate-50 hover:text-slate-900 {% endif %}">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z">
+              </path>
             </svg>
             <span>Events & Board</span>
           </a>
 
-          <a href="{{ url_for('moderation.moderation_view') }}" 
-             class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-150 {% if request.endpoint == 'moderation.moderation_view' %} bg-indigo-50 text-indigo-600 {% else %} text-slate-600 hover:bg-slate-50 hover:text-slate-900 {% endif %}">
+          <a href="{{ url_for('moderation.moderation_view') }}"
+            class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-150 {% if request.endpoint == 'moderation.moderation_view' %} bg-indigo-50 text-indigo-600 {% else %} text-slate-600 hover:bg-slate-50 hover:text-slate-900 {% endif %}">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
+              </path>
             </svg>
             <span>Moderation</span>
           </a>
 
-          <a href="{{ url_for('settings.settings_view') }}" 
-             class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-150 {% if request.endpoint == 'settings.settings_view' %} bg-indigo-50 text-indigo-600 {% else %} text-slate-600 hover:bg-slate-50 hover:text-slate-900 {% endif %}">
+          <a href="{{ url_for('settings.settings_view') }}"
+            class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-150 {% if request.endpoint == 'settings.settings_view' %} bg-indigo-50 text-indigo-600 {% else %} text-slate-600 hover:bg-slate-50 hover:text-slate-900 {% endif %}">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
+              </path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
             </svg>
             <span>Settings</span>
           </a>
@@ -98,13 +120,15 @@
 
       <!-- Admin Profile Card & Logout -->
       <div class="p-4 border-t border-slate-100 space-y-2">
-        <a href="{{ url_for('profile.profile_view') }}" 
-           title="Customize Profile"
-           class="bg-slate-50 hover:bg-slate-100/90 p-3 rounded-2xl border border-slate-200/80 flex items-center justify-between transition-all group {% if request.endpoint == 'profile.profile_view' %} ring-2 ring-indigo-500/30 bg-indigo-50/40 border-indigo-200 {% endif %}">
+        <a href="{{ url_for('profile.profile_view') }}" title="Customize Profile"
+          class="bg-slate-50 hover:bg-slate-100/90 p-3 rounded-2xl border border-slate-200/80 flex items-center justify-between transition-all group {% if request.endpoint == 'profile.profile_view' %} ring-2 ring-indigo-500/30 bg-indigo-50/40 border-indigo-200 {% endif %}">
           <div class="flex items-center space-x-3 min-w-0">
-            <img id="sidebarAvatarImg" src="{{ current_user.avatar_url }}" alt="Profile" class="w-10 h-10 rounded-xl object-cover border border-slate-200 shadow-xs flex-shrink-0">
+            <img id="sidebarAvatarImg" src="{{ current_user.avatar_url }}" alt="Profile"
+              class="w-10 h-10 rounded-xl object-cover border border-slate-200 shadow-xs flex-shrink-0">
             <div class="min-w-0">
-              <p id="sidebarAdminName" class="text-xs font-bold text-slate-900 truncate group-hover:text-indigo-600 transition-colors">{{ current_user.name }}</p>
+              <p id="sidebarAdminName"
+                class="text-xs font-bold text-slate-900 truncate group-hover:text-indigo-600 transition-colors">{{
+                current_user.name }}</p>
               <p id="sidebarAdminRole" class="text-[10px] text-slate-500 truncate">{{ current_user.role }}</p>
             </div>
           </div>
@@ -116,10 +140,11 @@
         </a>
 
         <!-- Clearly Labeled Logout Button -->
-        <a href="{{ url_for('auth.logout') }}" 
-           class="w-full flex items-center justify-center space-x-2 py-2.5 px-3 rounded-xl text-xs font-bold text-slate-600 hover:text-rose-600 hover:bg-rose-50 border border-slate-200/60 hover:border-rose-200 transition-all shadow-xs">
+        <a href="{{ url_for('auth.logout') }}"
+          class="w-full flex items-center justify-center space-x-2 py-2.5 px-3 rounded-xl text-xs font-bold text-slate-600 hover:text-rose-600 hover:bg-rose-50 border border-slate-200/60 hover:border-rose-200 transition-all shadow-xs">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
           </svg>
           <span>Log Out</span>
         </a>
@@ -128,15 +153,17 @@
 
     <!-- Main Content Area -->
     <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <!-- Top Header Bar -->
+      <!-- Top Header Bar -->
       <header class="h-16 bg-white border-b border-slate-200 px-4 sm:px-6 flex items-center z-10">
         <div class="flex items-center space-x-3 min-w-0">
-          <button id="mobileSidebarToggle" class="md:hidden text-slate-600 hover:text-slate-900 p-2 rounded-xl hover:bg-slate-100 transition-colors">
+          <button id="mobileSidebarToggle"
+            class="md:hidden text-slate-600 hover:text-slate-900 p-2 rounded-xl hover:bg-slate-100 transition-colors">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
             </svg>
           </button>
-          <h1 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight truncate">{% block header_title %}Overview{% endblock %}</h1>
+          <h1 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight truncate">{% block header_title
+            %}Overview{% endblock %}</h1>
         </div>
       </header>
 
@@ -145,17 +172,18 @@
 
         <!-- Flash Messages -->
         {% with messages = get_flashed_messages(with_categories=true) %}
-          {% if messages %}
-            <div class="mb-6 space-y-2">
-              {% for category, message in messages %}
-                <div class="px-4 py-3 rounded-xl border text-sm font-medium flex items-center justify-between shadow-sm
+        {% if messages %}
+        <div class="mb-6 space-y-2">
+          {% for category, message in messages %}
+          <div
+            class="px-4 py-3 rounded-xl border text-sm font-medium flex items-center justify-between shadow-sm
                   {% if category == 'danger' %} bg-rose-50 border-rose-200 text-rose-800 {% elif category == 'info' %} bg-indigo-50 border-indigo-200 text-indigo-800 {% else %} bg-emerald-50 border-emerald-200 text-emerald-800 {% endif %}">
-                  <span>{{ message }}</span>
-                  <button onclick="this.parentElement.remove()" class="opacity-60 hover:opacity-100 ml-4">&times;</button>
-                </div>
-              {% endfor %}
-            </div>
-          {% endif %}
+            <span>{{ message }}</span>
+            <button onclick="this.parentElement.remove()" class="opacity-60 hover:opacity-100 ml-4">&times;</button>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
         {% endwith %}
 
         {% block content %}{% endblock %}
@@ -163,10 +191,10 @@
     </div>
   </div>
   {% else %}
-    <!-- Full-screen layout for unauthenticated pages (Login) -->
-    <main class="flex-1 flex items-center justify-center p-4">
-      {% block auth_content %}{% endblock %}
-    </main>
+  <!-- Full-screen layout for unauthenticated pages (Login) -->
+  <main class="flex-1 flex items-center justify-center p-4">
+    {% block auth_content %}{% endblock %}
+  </main>
   {% endif %}
 
   <!-- Core Scripts -->
@@ -174,4 +202,5 @@
   <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
   {% block scripts %}{% endblock %}
 </body>
+
 </html>

@@ -32,13 +32,16 @@ body {
   width: 6px;
   height: 6px;
 }
+
 ::-webkit-scrollbar-track {
   background: #F1F5F9;
 }
+
 ::-webkit-scrollbar-thumb {
   background: #CBD5E1;
   border-radius: 4px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: #94A3B8;
 }
@@ -54,6 +57,7 @@ body {
 .hover-card {
   transition: all 0.2s ease-in-out;
 }
+
 .hover-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
@@ -65,6 +69,7 @@ body {
   cursor: pointer;
   user-select: none;
 }
+
 .court-cell:hover {
   filter: brightness(0.95);
   transform: scale(1.02);
@@ -75,16 +80,19 @@ body {
   color: #047857;
   border: 1px solid #A7F3D0;
 }
+
 .status-Booked {
   background-color: #EEF2FF;
   color: #3730A3;
   border: 1px solid #C7D2FE;
 }
+
 .status-Maintenance {
   background-color: #FEF3C7;
   color: #92400E;
   border: 1px solid #FDE68A;
 }
+
 .status-Reserved {
   background-color: #F3E8FF;
   color: #6B21A8;
@@ -103,11 +111,13 @@ input[type=range] {
   width: 44px;
   height: 24px;
 }
+
 .switch input {
   opacity: 0;
   width: 0;
   height: 0;
 }
+
 .slider {
   position: absolute;
   cursor: pointer;
@@ -119,6 +129,7 @@ input[type=range] {
   transition: .3s;
   border-radius: 24px;
 }
+
 .slider:before {
   position: absolute;
   content: "";
@@ -129,12 +140,14 @@ input[type=range] {
   background-color: white;
   transition: .3s;
   border-radius: 50%;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
-input:checked + .slider {
+
+input:checked+.slider {
   background-color: var(--primary-indigo);
 }
-input:checked + .slider:before {
+
+input:checked+.slider:before {
   transform: translateX(20px);
 }
 
@@ -146,7 +159,54 @@ input:checked + .slider:before {
 /* Toast Notifications Container */
 #toast-container {
   position: fixed;
-  bottom: 24px;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
   right: 24px;
   z-index: 9999;
+}
+
+/* Cross-Platform & Mobile / Tablet / iPhone Optimizations */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+a,
+input,
+select {
+  touch-action: manipulation;
+}
+
+/* Smooth momentum scrolling on iOS WebKit & touch devices */
+.overflow-x-auto,
+.overflow-y-auto {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+/* Fix iOS Safari unwanted auto-zoom when focusing inputs */
+@media screen and (max-width: 768px) {
+
+  input[type="text"],
+  input[type="number"],
+  input[type="date"],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Cross-browser Sticky Table Column Support (Safari, Chrome, Firefox, Edge) */
+.matrix-sticky-col {
+  position: -webkit-sticky !important;
+  position: sticky !important;
+  left: 0 !important;
+  z-index: 10 !important;
+  background-color: #F8FAFC !important;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+/* Safe Area Inset Support for iPhone notch / dynamic island */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }

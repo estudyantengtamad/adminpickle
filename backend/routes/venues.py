@@ -58,6 +58,8 @@ def save_booking():
     time_slot = data.get('time_slot')
     customer_name = data.get('customer_name', '').strip()
     payment_status = data.get('payment_status', 'paid')
+    payment_method = data.get('payment_method', 'Cash')
+    amount_paid = data.get('amount_paid')
     rent_paddle = data.get('rent_paddle', False)
     paddle_count = data.get('paddle_count', 0)
     duration_hours = data.get('duration_hours', 1)
@@ -65,7 +67,18 @@ def save_booking():
     if not date or not court or not time_slot or not customer_name:
         return jsonify({"success": False, "message": "Date, Court, Time Slot, and Customer Name are required."})
 
-    success, msg = db.save_direct_booking(date, court, time_slot, customer_name, payment_status, rent_paddle, paddle_count, duration_hours)
+    success, msg = db.save_direct_booking(
+        date=date,
+        court=court,
+        time_slot=time_slot,
+        customer_name=customer_name,
+        payment_status=payment_status,
+        rent_paddle=rent_paddle,
+        paddle_count=paddle_count,
+        duration_hours=duration_hours,
+        payment_method=payment_method,
+        amount_paid=amount_paid
+    )
     return jsonify({"success": success, "message": msg})
 
 

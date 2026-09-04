@@ -105,6 +105,11 @@ function selectPlayer(playerJson) {
   document.getElementById('inspStatus').innerText = player.status;
   document.getElementById('inspNotes').innerText = player.notes || 'No notes available.';
 
+  const avatarLetter = document.getElementById('inspAvatarLetter');
+  if (avatarLetter && player.name) {
+    avatarLetter.innerText = player.name.charAt(0).toUpperCase();
+  }
+
   // Highlight status badge color
   const statusBadge = document.getElementById('inspStatus');
   statusBadge.className = 'px-2.5 py-1 rounded-full text-xs font-semibold ' + (
@@ -188,51 +193,6 @@ function filterPlayers() {
   });
 }
 
-// Matchmaking Controls
-async function saveMatchmakingParams() {
-  const maxSkillGap = document.getElementById('skillGapInput')?.value || 50;
-  const densityMult = document.getElementById('densityMultiplierInput')?.value || 1.25;
-  const smartMatch = document.getElementById('smartMatchToggle')?.checked ?? True;
-
-  try {
-    const res = await fetch('/api/matchmaking/save_params', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        max_skill_gap: maxSkillGap,
-        density_multiplier: densityMult,
-        smart_matchmaking: smartMatch
-      })
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast(data.message, 'success');
-    }
-  } catch (err) {
-    showToast('Error saving matchmaking parameters.', 'danger');
-  }
-}
-
-async function forceMatchSearch() {
-  try {
-    const res = await fetch('/api/matchmaking/force_search', { method: 'POST' });
-    const data = await res.json();
-    showToast(data.message, 'success');
-  } catch (err) {
-    showToast('Error forcing match search.', 'danger');
-  }
-}
-
-async function emergencyResetMatchmaker() {
-  if (!confirm('Are you sure you want to trigger an emergency reset on the matchmaking engine?')) return;
-  try {
-    const res = await fetch('/api/matchmaking/reset', { method: 'POST' });
-    const data = await res.json();
-    showToast(data.message, 'danger');
-  } catch (err) {
-    showToast('Error resetting matchmaking engine.', 'danger');
-  }
-}
 // Moderation Actions
 async function handleReportAction(reportId, action) {
   try {

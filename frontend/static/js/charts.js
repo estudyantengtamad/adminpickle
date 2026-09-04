@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!chartCanvas) return;
 
   const ctx = chartCanvas.getContext('2d');
-  
+
   // Create subtle gradient fill
   const gradient = ctx.createLinearGradient(0, 0, 0, 300);
   gradient.addColorStop(0, 'rgba(79, 70, 229, 0.25)');
