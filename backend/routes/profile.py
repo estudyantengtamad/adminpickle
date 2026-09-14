@@ -1,16 +1,64 @@
 import os
 import uuid
+import logging
+import requests
 from flask import Blueprint, render_template, request, jsonify, current_app, url_for
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from backend.models.mock_db import db
 
 profile_bp = Blueprint('profile', __name__)
+logger = logging.getLogger(__name__)
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'gif'}
+ALLOWED_MIME_TYPES = {
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'image/gif'
+}
 
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+def allowed_file(filename, mimetype=None):
+    ext_ok = '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    if mimetype:
+        return ext_ok and (mimetype.lower() in ALLOWED_MIME_TYPES)
+    return ext_ok
+
+def upload_to_supabase_storage(file_bytes, filename, content_type):
+    """
+    Uploads an avatar file to Supabase Storage via REST API.
+    Returns the permanent public URL on success, or None on failure.
+    """
+    supabase_url = current_app.config.get('SUPABASE_URL')
+    supabase_key = current_app.config.get('SUPABASE_KEY')
+    bucket = current_app.config.get('SUPABASE_STORAGE_BUCKET', 'avatars')
+
+    if not supabase_url or not supabase_key:
+        return None
+
+    # Construct the Supabase Storage object endpoint
+    clean_url = supabase_url.rstrip('/')
+    endpoint = f"{clean_url}/storage/v1/object/{bucket}/{filename}"
+    
+    headers = {
+        'Authorization': f'Bearer {supabase_key}',
+        'apikey': supabase_key,
+        'Content-Type': content_type or 'application/octet-stream',
+        'x-upsert': 'true'
+    }
+
+    try:
+        response = requests.post(endpoint, data=file_bytes, headers=headers, timeout=10)
+        if response.status_code in (200, 201):
+            public_url = f"{clean_url}/storage/v1/object/public/{bucket}/{filename}"
+            logger.info(f"Successfully uploaded {filename} to Supabase Storage bucket '{bucket}'")
+            return public_url
+        else:
+            logger.error(f"Supabase Storage upload failed with status {response.status_code}: {response.text}")
+            return None
+    except Exception as e:
+        logger.error(f"Error uploading to Supabase Storage: {e}")
+        return None
 
 @profile_bp.route('/profile')
 @login_required
@@ -28,22 +76,39 @@ def upload_avatar():
         if file.filename == '':
             return jsonify({"success": False, "message": "No file selected."}), 400
         
-        if file and allowed_file(file.filename):
+        mimetype = file.mimetype or 'image/jpeg'
+        if file and allowed_file(file.filename, mimetype):
             ext = file.filename.rsplit('.', 1)[1].lower()
-            unique_filename = f"avatar_{current_user.id}_{uuid.uuid4().hex[:8]}.{ext}"
-            upload_path = os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename)
+            unique_filename = f"avatar_{current_user.id}_{uuid.uuid4().hex[:12]}.{ext}"
             
-            try:
-                file.save(upload_path)
-                avatar_url = url_for('static', filename=f'uploads/{unique_filename}')
-                db.update_admin_avatar(current_user.id, avatar_url)
-                return jsonify({
-                    "success": True,
-                    "avatar_url": avatar_url,
-                    "message": "Profile photo updated successfully!"
-                })
-            except Exception as e:
-                return jsonify({"success": False, "message": f"Failed to save file: {str(e)}"}), 500
+            # Read file bytes into memory for validation and upload
+            file_bytes = file.read()
+            
+            # Security: Cap file size to 5MB
+            if len(file_bytes) > 5 * 1024 * 1024:
+                return jsonify({"success": False, "message": "File size exceeds 5MB limit."}), 400
+
+            # 1. Try uploading to Supabase Storage (preferred for Vercel/Cloud)
+            avatar_url = upload_to_supabase_storage(file_bytes, unique_filename, mimetype)
+
+            # 2. Fallback to local storage if Supabase Storage is not configured
+            if not avatar_url:
+                try:
+                    upload_path = os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename)
+                    with open(upload_path, 'wb') as f:
+                        f.write(file_bytes)
+                    avatar_url = url_for('static', filename=f'uploads/{unique_filename}')
+                except Exception as e:
+                    logger.error(f"Failed to save file locally: {e}")
+                    return jsonify({"success": False, "message": "Failed to save profile picture."}), 500
+
+            # Update database record with new avatar URL
+            db.update_admin_avatar(current_user.id, avatar_url)
+            return jsonify({
+                "success": True,
+                "avatar_url": avatar_url,
+                "message": "Profile photo updated successfully!"
+            })
         else:
             return jsonify({"success": False, "message": "Invalid file format. Please upload JPG, PNG, WEBP, or GIF."}), 400
 
@@ -51,6 +116,9 @@ def upload_avatar():
     data = request.get_json(silent=True) or {}
     image_url = data.get('avatar_url', '').strip()
     if image_url:
+        # Basic validation that it starts with https://
+        if not (image_url.startswith('https://') or image_url.startswith('http://') or image_url.startswith('/static/')):
+            return jsonify({"success": False, "message": "Please provide a valid image URL."}), 400
         db.update_admin_avatar(current_user.id, image_url)
         return jsonify({
             "success": True,

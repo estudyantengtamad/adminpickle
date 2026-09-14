@@ -6,8 +6,11 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from flask import Flask, render_template
 from flask_login import LoginManager
+from authlib.integrations.flask_client import OAuth
 from backend.config import Config
 from backend.models.mock_db import db, sqla
+
+oauth = OAuth()
 
 def create_app():
     # Resolve absolute paths for frontend templates & static assets
@@ -38,6 +41,16 @@ def create_app():
     def load_user(user_id):
         return db.get_user_by_id(user_id)
 
+    # Initialize OAuth for Google Sign-In
+    oauth.init_app(app)
+    oauth.register(
+        name='google',
+        client_id=app.config.get('GOOGLE_CLIENT_ID'),
+        client_secret=app.config.get('GOOGLE_CLIENT_SECRET'),
+        server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+        client_kwargs={'scope': 'openid email profile'}
+    )
+
     # Register Blueprints
     from backend.routes.auth import auth_bp
     from backend.routes.dashboard import dashboard_bp
@@ -61,6 +74,29 @@ def create_app():
     @app.errorhandler(404)
     def page_not_found(e):
         return render_template('base.html', page_title="404 Not Found"), 404
+
+    @app.after_request
+    def set_security_headers(response):
+        """Inject enterprise-grade HTTP security headers on all responses."""
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        response.headers['Permissions-Policy'] = 'geolocation=(), camera=(), microphone=()'
+        if app.config.get('IS_PRODUCTION'):
+            response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
+        return response
+
+    @app.teardown_request
+    def teardown_request(exception=None):
+        if exception:
+            try:
+                sqla.session.rollback()
+            except Exception:
+                pass
+        try:
+            sqla.session.remove()
+        except Exception:
+            pass
 
     return app
 

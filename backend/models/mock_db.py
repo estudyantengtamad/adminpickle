@@ -9,7 +9,9 @@ from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 import time
 import os
+import logging
 
+logger = logging.getLogger(__name__)
 sqla = SQLAlchemy()
 
 
@@ -24,11 +26,12 @@ class AdminUser(UserMixin, sqla.Model):
     id = sqla.Column(sqla.Integer, primary_key=True, autoincrement=True)
     username = sqla.Column(sqla.String(80), unique=True, nullable=False)
     name = sqla.Column(sqla.String(100), nullable=False)
+    email = sqla.Column(sqla.String(255), unique=True, nullable=True)
     role = sqla.Column(sqla.String(100), default='Lead Platform Admin')
     avatar_url = sqla.Column(sqla.Text, nullable=True)
     password_hash = sqla.Column(sqla.String(255), nullable=False)
 
-    def __init__(self, id=None, username=None, name=None, role="Lead Platform Admin", avatar_url=None, password_hash=None, **kwargs):
+    def __init__(self, id=None, username=None, name=None, email=None, role="Lead Platform Admin", avatar_url=None, password_hash=None, **kwargs):
         super().__init__(**kwargs)
         if id is not None:
             try:
@@ -37,6 +40,7 @@ class AdminUser(UserMixin, sqla.Model):
                 pass
         self.username = username
         self.name = name
+        self.email = email
         self.role = role
         self.avatar_url = avatar_url
         self.password_hash = password_hash
@@ -52,6 +56,7 @@ class AdminUser(UserMixin, sqla.Model):
             "id": self.id,
             "username": self.username,
             "name": self.name,
+            "email": self.email,
             "role": self.role,
             "avatar_url": self.avatar_url
         }
@@ -667,14 +672,114 @@ class DatabaseManager:
     def get_user_by_id(self, user_id):
         try:
             return AdminUser.query.get(int(user_id))
-        except Exception:
+        except Exception as e:
+            logger.error(f"Error in get_user_by_id: {e}")
+            try:
+                sqla.session.rollback()
+            except Exception:
+                pass
             return None
 
     def get_user_by_username(self, username):
         try:
             return AdminUser.query.filter_by(username=username).first()
-        except Exception:
+        except Exception as e:
+            logger.error(f"Error in get_user_by_username: {e}")
+            try:
+                sqla.session.rollback()
+            except Exception:
+                pass
             return None
+
+    def get_admin_by_email(self, email):
+        """Look up an AdminUser by their Google email (case-insensitive)."""
+        if not email:
+            return None
+        try:
+            return AdminUser.query.filter(
+                sqla.func.lower(AdminUser.email) == email.strip().lower()
+            ).first()
+        except Exception as e:
+            logger.error(f"Error in get_admin_by_email: {e}")
+            try:
+                sqla.session.rollback()
+            except Exception:
+                pass
+            return None
+
+    def get_or_create_admin_by_google(self, email, name, avatar_url=None):
+        """
+        Fetch existing AdminUser by email or username, or provision one on first Google login.
+        Returns the AdminUser instance.
+        """
+        import secrets
+        norm_email = email.strip().lower()
+        
+        # Ensure session is not in an aborted transaction state from previous calls
+        try:
+            sqla.session.rollback()
+        except Exception:
+            pass
+
+        # 1. Match by email column
+        user = self.get_admin_by_email(norm_email)
+        if user:
+            # Update name/avatar if not set or changed
+            changed = False
+            if name and not user.name:
+                user.name = name
+                changed = True
+            if avatar_url and not user.avatar_url:
+                user.avatar_url = avatar_url
+                changed = True
+            if changed:
+                try:
+                    sqla.session.commit()
+                except Exception:
+                    sqla.session.rollback()
+            return user
+
+        # 2. Match existing legacy admin by username (if username == email or matches prefix)
+        try:
+            user_by_uname = AdminUser.query.filter(
+                sqla.func.lower(AdminUser.username) == norm_email
+            ).first()
+            if user_by_uname:
+                user_by_uname.email = norm_email
+                if avatar_url and not user_by_uname.avatar_url:
+                    user_by_uname.avatar_url = avatar_url
+                try:
+                    sqla.session.commit()
+                    return user_by_uname
+                except Exception:
+                    sqla.session.rollback()
+        except Exception as e:
+            logger.error(f"Error querying admin by username in get_or_create: {e}")
+            try:
+                sqla.session.rollback()
+            except Exception:
+                pass
+
+        # 3. Provision new AdminUser
+        try:
+            display_name = name if name and name.strip() else norm_email.split('@')[0].capitalize()
+            sentinel_hash = generate_password_hash(secrets.token_hex(32))
+            new_admin = AdminUser(
+                username=norm_email,
+                name=display_name,
+                email=norm_email,
+                role='Lead Platform Admin',
+                avatar_url=avatar_url,
+                password_hash=sentinel_hash
+            )
+            sqla.session.add(new_admin)
+            sqla.session.commit()
+            self.add_audit_log(f"Provisioned new admin account via Google Sign-In ({norm_email})", display_name)
+            return new_admin
+        except Exception as e:
+            sqla.session.rollback()
+            # If race condition or duplicate username, retry fetch
+            return self.get_admin_by_email(norm_email) or self.get_user_by_username(norm_email)
 
     def update_admin_profile(self, user_id, name=None, role=None):
         user = self.get_user_by_id(user_id)
