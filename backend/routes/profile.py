@@ -19,7 +19,9 @@ ALLOWED_MIME_TYPES = {
 }
 
 def allowed_file(filename, mimetype=None):
-    ext_ok = '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    if not filename or '.' not in filename:
+        return False
+    ext_ok = filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
     if mimetype:
         return ext_ok and (mimetype.lower() in ALLOWED_MIME_TYPES)
     return ext_ok
@@ -73,12 +75,13 @@ def upload_avatar():
     # Check if a file was uploaded via multipart/form-data
     if 'avatar' in request.files:
         file = request.files['avatar']
-        if file.filename == '':
+        filename = getattr(file, 'filename', None)
+        if not file or not filename:
             return jsonify({"success": False, "message": "No file selected."}), 400
         
-        mimetype = file.mimetype or 'image/jpeg'
-        if file and allowed_file(file.filename, mimetype):
-            ext = file.filename.rsplit('.', 1)[1].lower()
+        mimetype = getattr(file, 'mimetype', None) or 'image/jpeg'
+        if allowed_file(filename, mimetype):
+            ext = filename.rsplit('.', 1)[1].lower()
             unique_filename = f"avatar_{current_user.id}_{uuid.uuid4().hex[:12]}.{ext}"
             
             # Read file bytes into memory for validation and upload
