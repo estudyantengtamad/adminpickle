@@ -9,12 +9,29 @@ class Config:
 
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'pickle-legends-admin-super-secret-key-2026'
 
-    # Database connection with SSL enforcement for remote PostgreSQL
-    raw_db_url = os.environ.get('DATABASE_URL') or 'sqlite:///adminpickle.db'
-    if raw_db_url.startswith('postgres://'):
-        raw_db_url = raw_db_url.replace('postgres://', 'postgresql+psycopg2://', 1)
-    elif raw_db_url.startswith('postgresql://'):
-        raw_db_url = raw_db_url.replace('postgresql://', 'postgresql+psycopg2://', 1)
+    # Database connection with driver resilience and SSL enforcement for remote PostgreSQL
+    raw_db_url = os.environ.get('DATABASE_URL')
+    if raw_db_url:
+        raw_db_url = raw_db_url.strip()
+        if raw_db_url.startswith('postgres://'):
+            raw_db_url = raw_db_url.replace('postgres://', 'postgresql://', 1)
+
+    # Dynamic driver selection to support both psycopg (v3) and psycopg2 across environments
+    if raw_db_url and raw_db_url.startswith("postgresql://") and not raw_db_url.startswith("postgresql+"):
+        try:
+            import psycopg  # type: ignore # noqa: F401
+            raw_db_url = raw_db_url.replace("postgresql://", "postgresql+psycopg://", 1)
+        except ImportError:
+            try:
+                import psycopg2  # type: ignore # noqa: F401
+                raw_db_url = raw_db_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+            except ImportError:
+                pass
+    elif not raw_db_url:
+        # Safe fallback: /tmp on Vercel read-only filesystem
+        instance_dir = "/tmp" if os.environ.get("VERCEL") else os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+        raw_db_url = f"sqlite:///{os.path.join(instance_dir, 'adminpickle.db')}"
+
     if 'postgresql' in raw_db_url and 'sslmode' not in raw_db_url:
         separator = '&' if '?' in raw_db_url else '?'
         raw_db_url = f"{raw_db_url}{separator}sslmode=require"

@@ -777,6 +777,8 @@ class DatabaseManager:
             self.add_audit_log(f"Provisioned new admin account via Google Sign-In ({norm_email})", display_name)
             return new_admin
         except Exception as e:
+            logger.error(f"[PROVISION ERROR] Could not create AdminUser for {norm_email}: {e}", exc_info=True)
+            print(f"[PROVISION ERROR for {norm_email}]: {e}")
             sqla.session.rollback()
             # If race condition or duplicate username, retry fetch
             return self.get_admin_by_email(norm_email) or self.get_user_by_username(norm_email)

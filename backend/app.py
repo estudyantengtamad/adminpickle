@@ -22,11 +22,35 @@ def create_app():
     app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
     app.config.from_object(Config)
 
+    # Configure SQLAlchemy Engine options for Serverless / Supabase connection pooling
+    db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
+    if 'postgresql' in db_uri:
+        if os.environ.get('VERCEL'):
+            from sqlalchemy.pool import NullPool
+            app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+                'poolclass': NullPool,
+                'pool_pre_ping': True,
+            }
+        else:
+            app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+                'pool_pre_ping': True,
+                'pool_recycle': 300,
+                'pool_size': 5,
+                'max_overflow': 2,
+                'pool_timeout': 15,
+            }
+
     # Trust Vercel reverse proxy headers (ensures request.is_secure is True and https scheme is preserved)
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
 
     # Initialize Database Connection
     sqla.init_app(app)
+
+    with app.app_context():
+        try:
+            sqla.create_all()
+        except Exception as e:
+            print("[DB INIT WARNING]:", e)
 
     # Configure upload folder for profile pictures and assets (read-only safe on Vercel)
     if os.environ.get('VERCEL'):
