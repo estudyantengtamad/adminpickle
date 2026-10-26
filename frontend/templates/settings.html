@@ -20,45 +20,55 @@
         </div>
       </div>
 
-      <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-        <span class="w-2 h-2 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>
-        Synced to Player Dashboard
-      </span>
+      <div class="flex items-center gap-2">
+        <span id="autoSaveStatus" class="hidden text-xs font-semibold px-3 py-1 rounded-full transition-all duration-300"></span>
+        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>
+          Synced to Player Dashboard
+        </span>
+      </div>
     </div>
 
     <div class="bg-slate-50 border border-slate-200/70 rounded-2xl p-5 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-6">
       <div class="space-y-1 text-center sm:text-left">
         <p class="text-xs font-bold text-slate-800 uppercase tracking-wider">Total Available Courts</p>
-        <p class="text-xs text-slate-500 max-w-md">Whenever players host open play or view your club schedule, this total court count will be automatically displayed.</p>
+        <p class="text-xs text-slate-500 max-w-md">Tap + or &minus; to instantly update court capacity. Changes sync to player devices automatically.</p>
       </div>
 
-      <!-- Easy Non-Tech Stepper -->
-      <div class="flex items-center space-x-3">
+      <!-- Easy Non-Tech Stepper (Instant 1-Tap & Touch Optimized) -->
+      <div class="flex flex-wrap items-center justify-center gap-3">
         <div class="flex items-center bg-white border border-slate-200 rounded-2xl p-1.5 shadow-sm">
           <button type="button" 
+                  id="btnMinusCourt"
                   onclick="adjustCourtCount(-1)" 
-                  class="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-lg flex items-center justify-center transition-colors active:scale-95">
-            −
+                  aria-label="Decrease court count"
+                  style="touch-action: manipulation; -webkit-tap-highlight-color: transparent;"
+                  class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 font-black text-xl flex items-center justify-center transition-all active:scale-95 cursor-pointer select-none">
+            &minus;
           </button>
-          <div class="px-5 text-center min-w-[100px]">
-            <span id="courtCountDisplay" class="text-2xl font-black text-slate-900">{{ total_courts or 6 }}</span>
+          <div class="px-5 text-center min-w-[100px] select-none">
+            <span id="courtCountDisplay" class="text-2xl sm:text-3xl font-black text-slate-900">{{ total_courts or 4 }}</span>
             <span class="block text-[10px] uppercase font-bold text-slate-400">Courts</span>
           </div>
           <button type="button" 
+                  id="btnPlusCourt"
                   onclick="adjustCourtCount(1)" 
-                  class="w-10 h-10 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-black text-lg flex items-center justify-center transition-colors active:scale-95">
+                  aria-label="Increase court count"
+                  style="touch-action: manipulation; -webkit-tap-highlight-color: transparent;"
+                  class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-indigo-50 hover:bg-indigo-100 active:bg-indigo-200 text-indigo-600 font-black text-xl flex items-center justify-center transition-all active:scale-95 cursor-pointer select-none">
             +
           </button>
         </div>
 
         <button type="button" 
-                onclick="saveCourtCount()" 
+                onclick="saveCourtCount(false)" 
                 id="saveCourtBtn"
-                class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-5 rounded-2xl text-xs shadow-md shadow-indigo-200 transition-all flex items-center space-x-1.5 active:scale-95">
+                style="touch-action: manipulation; -webkit-tap-highlight-color: transparent;"
+                class="bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold py-3 px-5 rounded-2xl text-xs sm:text-sm shadow-md shadow-indigo-200 transition-all flex items-center space-x-1.5 active:scale-95 cursor-pointer">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
           </svg>
-          <span>Save</span>
+          <span>Save Changes</span>
         </button>
       </div>
     </div>
@@ -104,17 +114,33 @@
 
 {% block scripts %}
 <script>
-let currentCourts = parseInt(document.getElementById('courtCountDisplay')?.innerText || '6', 10);
+let currentCourts = parseInt(document.getElementById('courtCountDisplay')?.innerText || '4', 10);
+let autoSaveTimer = null;
 
 function adjustCourtCount(delta) {
   currentCourts = Math.max(1, Math.min(20, currentCourts + delta));
   const el = document.getElementById('courtCountDisplay');
   if (el) el.innerText = currentCourts;
+
+  // Visual status pill
+  const status = document.getElementById('autoSaveStatus');
+  if (status) {
+    status.classList.remove('hidden');
+    status.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1.5';
+    status.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Saving...';
+  }
+
+  // Instant Auto-Save on 1 tap (200ms debounce)
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(() => {
+    saveCourtCount(true);
+  }, 200);
 }
 
-async function saveCourtCount() {
+async function saveCourtCount(isAutoSave = false) {
   const btn = document.getElementById('saveCourtBtn');
-  if (btn) {
+  const status = document.getElementById('autoSaveStatus');
+  if (btn && !isAutoSave) {
     btn.disabled = true;
     btn.classList.add('opacity-75');
   }
@@ -127,14 +153,22 @@ async function saveCourtCount() {
     });
     const data = await res.json();
     if (data.success) {
-      showToast(data.message, 'success');
+      if (status) {
+        status.classList.remove('hidden');
+        status.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5';
+        status.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Synced live to players ✓';
+        setTimeout(() => { if (status) status.classList.add('hidden'); }, 3000);
+      }
+      if (!isAutoSave) showToast(data.message, 'success');
     } else {
+      if (status) status.classList.add('hidden');
       showToast(data.message || 'Failed to update court count.', 'danger');
     }
   } catch (err) {
-    showToast('Network error updating court count.', 'danger');
+    if (status) status.classList.add('hidden');
+    if (!isAutoSave) showToast('Network error updating court count.', 'danger');
   } finally {
-    if (btn) {
+    if (btn && !isAutoSave) {
       btn.disabled = false;
       btn.classList.remove('opacity-75');
     }
@@ -142,4 +176,3 @@ async function saveCourtCount() {
 }
 </script>
 {% endblock %}
-
